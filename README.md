@@ -5,6 +5,7 @@ A collection of standalone, high-performance client-side browser utilities, conv
 
 Production Website: [https://omnikit.tech](https://omnikit.tech)  
 Repository: [https://github.com/Morendais/omnikit](https://github.com/Morendais/omnikit)  
+Author: [Morendais](https://github.com/Morendais)  
 License: MIT  
 
 [English](#english) | [Russian](#russian)
@@ -43,7 +44,7 @@ Files and inputs never leave the client environment.
 | :--- | :--- | :--- |
 | Image Processing | tools/image-tools.js | Image conversion (PNG, JPG, WebP), lossy/lossless image compression, dimension resizing, EXIF metadata stripping. |
 | Media and Creativity | tools/media-creative.js | Watermark engine with typography layers and canvas composition, SVG to PNG/ICO rasterizer with XSS sanitization. |
-| Background Removal | tools/bg-remover.js | Client-side edge detection, color distance segmentation, transparent PNG export. |
+| Background Removal | tools/bg-remover.js | Neural segmentation (U2-Net INT8 ONNX) running 100% in-browser via WebAssembly/WebGPU with Canvas fallback. |
 | Favicon Studio | tools/favicon-studio.js | Multi-resolution ICO generator (16x16, 32x32, 48x48) and PNG favicon builder. |
 | PDF Suite | tools/pdf-suite.js | PDF merging, page splitting, PDF-to-image rendering via PDF.js. |
 | Images to PDF | tools/media-extended.js | Multi-image compilation into formatted PDF documents with configurable margins and orientation. |
@@ -138,7 +139,7 @@ OmniKit Tools — библиотека независимых JavaScript-мод�
 
 - `tools/image-tools.js`: Конвертация изображений (PNG, JPG, WebP), сжатие с настройкой качества, изменение размеров, удаление метаданных EXIF.
 - `tools/media-creative.js`: Наложение водяных знаков на холсте, конвертация SVG в PNG/ICO с санитизацией XSS.
-- `tools/bg-remover.js`: Клиентское удаление фона по цветовому порогу и контрасту.
+- `tools/bg-remover.js`: Нейросетевое удаление фона (U2-Net INT8 ONNX через WebAssembly/WebGPU) 100% в браузере.
 - `tools/favicon-studio.js`: Генерация многослойных ICO (16x16, 32x32, 48x48) и PNG фавиконов.
 - `tools/pdf-suite.js`: Объединение PDF, извлечение диапазонов страниц, рендеринг страниц PDF в изображения.
 - `tools/media-extended.js`: Сборка нескольких изображений в единый PDF документ.
@@ -165,6 +166,13 @@ OmniKit Tools — библиотека независимых JavaScript-мод�
 - **Криптография и хеши:** Реализация RFC 1321 (MD5), W3C WebCrypto API (SHA-256, SHA-512).
 - **Парсер CSV:** Спецификация RFC 4180.
 - **Тесты оборудования:** Стандарты W3C Web Audio API и MediaDevices API.
+
+### Автор и создатель
+
+OmniKit Tools разработан и поддерживается **[Morendais](https://github.com/Morendais)**.
+- **Профиль GitHub**: [@Morendais](https://github.com/Morendais)
+- **Репозиторий**: [https://github.com/Morendais/omnikit](https://github.com/Morendais/omnikit)
+- **Официальный сайт**: [https://omnikit.tech](https://omnikit.tech)
 
 ### Лицензия
 
