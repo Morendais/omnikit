@@ -70,9 +70,11 @@ Every tool can be launched directly in your browser or used via individual canon
 | **Image Resizer** | [Launch Online](https://omnikit.tech/en/image-resizer) | Scale dimensions, preset aspect ratios (1:1, 16:9, 4:3), rotate |
 | **Background Remover** | [Launch Online](https://omnikit.tech/en/background-remover) | In-browser neural segmentation (U2-Net INT8 ONNX) with 100% client-side privacy |
 | **Watermark Studio** | [Launch Online](https://omnikit.tech/en/watermark) | Draggable watermarks, custom typography, HSL color spectrum |
-| **Favicon Generator** | [Launch Online](https://omnikit.tech/en/favicon-generator) | Multi-resolution Windows ICO (16x16, 32x32, 48x48) & PNG favicons |
+| **Favicon & App Icon Studio** | [Launch Online](https://omnikit.tech/en/favicon-generator) | Multi-resolution Windows ICO (16x16, 32x32, 48x48) & Apple Touch icon studio |
+| **Video to GIF Converter** | [Launch Online](https://omnikit.tech/en/video-to-gif) | Convert MP4/WebM videos to animated GIF with frame rate and resolution controls |
+| **Video to Audio (WAV/MP3)** | [Launch Online](https://omnikit.tech/en/video-to-audio) | Extract audio tracks from video files directly in-browser using Web Audio API |
+| **Online Signature & Draw** | [Launch Online](https://omnikit.tech/en/online-signature) | Smooth Bezier hand-drawn signatures, cursive typing, and transparent PNG/SVG export |
 | **SVG to PNG Converter** | [Launch Online](https://omnikit.tech/en/svg-to-png) | Vector SVG rasterizer up to 4x Retina with XSS sanitization |
-| **SVG to ICO Converter** | [Launch Online](https://omnikit.tech/en/svg-to-ico) | Multi-size Windows .ico builder and Apple Touch icons |
 | **EXIF Metadata Remover** | [Launch Online](https://omnikit.tech/en/exif-remover) | Strip GPS coordinates, camera model, and privacy metadata |
 | **OCR Text Recognition** | [Launch Online](https://omnikit.tech/en/image-to-text) | Extract text from scans and images in your browser |
 | **Audio Speed & Pitch** | [Launch Online](https://omnikit.tech/en/audio-speed-changer) | Adjust tempo, shift pitch, Slowed + Reverb, Nightcore |
@@ -206,9 +208,11 @@ console.log(OfficeTools.spellEnglishNumber(125));
 | **Изменение размера фото** | [Открыть инструмент](https://omnikit.tech/image-resizer) | Масштабирование, пропорции 1:1, 16:9, 4:3 и поворот фото |
 | **Удаление фона с фото** | [Открыть инструмент](https://omnikit.tech/background-remover) | Локальное удаление фона с фото и экспорт в прозрачный PNG |
 | **Водяной знак на фото** | [Открыть инструмент](https://omnikit.tech/watermark) | Наложение водяных знаков, выбор цвета по HSL, шрифты и логотипы |
-| **Генератор Favicon** | [Открыть инструмент](https://omnikit.tech/favicon-generator) | Создание пакета иконок для сайта (favicon.ico и PNG) |
+| **Favicon & App Icon Studio** | [Открыть инструмент](https://omnikit.tech/favicon-generator) | Создание пакета иконок для сайта (Windows .ico и Apple Touch PNG) |
+| **Видео в GIF конвертер** | [Открыть инструмент](https://omnikit.tech/video-to-gif) | Конвертация видеофайлов в GIF-анимацию с выбором FPS и разрешения |
+| **Видео в Аудио (WAV/MP3)** | [Открыть инструмент](https://omnikit.tech/video-to-audio) | Быстрое извлечение звуковой дорожки из видео прямо в браузере |
+| **Электронная подпись онлайн** | [Открыть инструмент](https://omnikit.tech/online-signature) | Создание рукописной подписи, рукописные шрифты, экспорт в прозрачный PNG/SVG |
 | **SVG в PNG** | [Открыть инструмент](https://omnikit.tech/svg-to-png) | Рендеринг векторного SVG в PNG высокого разрешения |
-| **SVG в ICO** | [Открыть инструмент](https://omnikit.tech/svg-to-ico) | Конвертация SVG в мульти-резолюционный Windows .ico |
 | **Очистка EXIF данных** | [Открыть инструмент](https://omnikit.tech/exif-remover) | Удаление геолокации, модели камеры и скрытых метаданных |
 | **Распознавание текста (OCR)** | [Открыть инструмент](https://omnikit.tech/image-to-text) | Браузерное оптическое распознавание текста с картинок |
 | **Скорость и тональность аудио** | [Открыть инструмент](https://omnikit.tech/audio-speed-changer) | Управление темпом, тональностью, Slowed + Reverb и Nightcore |
