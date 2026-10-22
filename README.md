@@ -20,7 +20,7 @@ A comprehensive open-source collection of **40+ high-performance client-side bro
 
 - Production Web App: [https://omnikit.tech](https://omnikit.tech)
 - English Version: [https://omnikit.tech/en/](https://omnikit.tech/en/)
-- Official Repository: [https://github.com/Morendais/omnikit](https://github.com/Morendais/omnikit)
+- Official Repository: [https://github.com/Morendais/omnikit.tech](https://github.com/Morendais/omnikit.tech)
 - Author: [Morendais](https://github.com/Morendais)
 - License: MIT
 
@@ -129,7 +129,7 @@ Every tool can be launched directly in your browser or used via individual canon
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Morendais/omnikit.git
+git clone https://github.com/Morendais/omnikit.tech.git
 cd omnikit
 
 # 2. Run automated test suite
@@ -261,7 +261,7 @@ console.log(OfficeTools.spellEnglishNumber(125));
 Проект OmniKit разработан и поддерживается **[Morendais](https://github.com/Morendais)**.
 - **Профиль GitHub**: [@Morendais](https://github.com/Morendais)
 - **Официальный сайт**: [https://omnikit.tech](https://omnikit.tech)
-- **Репозиторий**: [https://github.com/Morendais/omnikit](https://github.com/Morendais/omnikit)
+- **Репозиторий**: [https://github.com/Morendais/omnikit.tech](https://github.com/Morendais/omnikit.tech)
 
 ### Лицензия
 
