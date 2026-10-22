@@ -382,7 +382,7 @@ const MediaExtended = {
         </div>
       `;
 
-      // If heic2any is loaded, use it; otherwise fallback to Canvas / createImageBitmap
+      // 1. Try heic2any with wasm decoder
       if (window.heic2any) {
         try {
           const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
@@ -392,18 +392,18 @@ const MediaExtended = {
           statusBox.innerHTML = `
             <div class="p-4 rounded border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3">
               <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${isRu ? 'Файл успешно сконвертирован в JPG!' : 'File successfully converted to JPG!'}</p>
-              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs">
+              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs inline-block">
                 ${isRu ? 'Скачать JPG' : 'Download JPG'}
               </a>
             </div>
           `;
           return;
         } catch (err) {
-          console.warn('heic2any error:', err);
+          console.warn('heic2any error, trying fallback:', err);
         }
       }
 
-      // Fallback: ImageBitmap attempt (Safari / Chrome 120+)
+      // 2. Fallback: Native ImageBitmap & Canvas (works if browser supports HEIC or standard image)
       try {
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement('canvas');
@@ -412,13 +412,14 @@ const MediaExtended = {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(bitmap, 0, 0);
         canvas.toBlob((blob) => {
+          if (!blob) throw new Error('Canvas blob failed');
           const url = URL.createObjectURL(blob);
           const rawBase = file.name.replace(/\.[^/.]+$/, "") || 'converted';
           const safeBase = rawBase.replace(/[^\wа-яА-ЯёЁ.-]/g, '_');
           statusBox.innerHTML = `
             <div class="p-4 rounded border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3">
-              <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${isRu ? 'Сконвертировано в JPG!' : 'Converted to JPG!'}</p>
-              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs">
+              <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${isRu ? 'Файл успешно сконвертирован в JPG!' : 'Converted to JPG!'}</p>
+              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs inline-block">
                 ${isRu ? 'Скачать JPG' : 'Download JPG'}
               </a>
             </div>
@@ -428,14 +429,16 @@ const MediaExtended = {
         statusBox.innerHTML = `
           <div class="p-4 rounded border border-amber-500/20 bg-amber-500/10 text-center">
             <p class="text-xs text-amber-600 dark:text-amber-400">
-              ${isRu ? 'Ваш браузер требует поддержки библиотеки HEIC. Рекомендуем открыть фото в Safari или использовать JPG.' : 'Your browser requires HEIC library support. Please use Safari or standard formats.'}
+              ${isRu ? 'Не удалось декодировать файл. Убедитесь, что это действительное фото HEIC/HEIF или откройте его в Safari/iOS.' : 'Could not decode file. Please ensure it is a valid HEIC/HEIF image or try Safari.'}
             </p>
           </div>
         `;
       }
     };
 
-    dropzone.addEventListener('click', () => input.click());
+    dropzone.addEventListener('click', (e) => {
+      if (e.target !== input) input.click();
+    });
     dropzone.addEventListener('dragover', (e) => e.preventDefault());
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault();

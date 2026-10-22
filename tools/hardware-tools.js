@@ -58,23 +58,22 @@ const HardwareTools = {
   // 4. MOUSE & DOUBLE-CLICK TESTER
   // ==========================================
   mouse: {
-    clickThreshold: 50, // milliseconds threshold for switch chatter / double-click
-    lastDownTime: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 },
     pressedButtons: new Set(),
-    doubleClicksCount: 0,
+    lastDownTime: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 },
+    clickThreshold: 80,
     normalClicksCount: 0,
-    clickHistory: [],
+    doubleClicksCount: 0,
+    wheelTotalScrolls: 0,
+    wheelAnomaliesCount: 0,
+    lastWheelDirection: 0,
+    lastWheelTime: 0,
     cpsActive: false,
     cpsCooldown: false,
+    cpsDuration: 5,
     cpsClicks: 0,
     cpsTimer: null,
     cpsTimeLeft: 5,
     cpsBest: 0,
-    lastWheelTime: 0,
-    lastWheelDirection: null,
-    wheelAnomaliesCount: 0,
-    wheelTotalScrolls: 0,
-    isActive: false,
     globalListenersBound: false
   },
 
@@ -1026,7 +1025,25 @@ const HardwareTools = {
     scrollZone?.addEventListener('wheel', (e) => this.handleMouseWheel(e), { passive: false });
 
     // 3. CPS Rapid Click Button
-    cpsBtn?.addEventListener('click', () => this.handleCpsClick());
+    cpsBtn?.addEventListener('click', (e) => this.handleCpsClick(e));
+
+    // Duration selector pills (1s, 3s, 5s, 10s)
+    document.querySelectorAll('.cps-duration-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        if (this.mouse.cpsActive) return;
+        const sec = parseInt(e.currentTarget.getAttribute('data-sec'), 10) || 5;
+        this.mouse.cpsDuration = sec;
+        this.mouse.cpsTimeLeft = sec;
+
+        document.querySelectorAll('.cps-duration-pill').forEach(p => {
+          p.className = 'cps-duration-pill px-2 py-0.5 rounded transition text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100';
+        });
+        e.currentTarget.className = 'cps-duration-pill px-2 py-0.5 rounded transition bg-white dark:bg-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-black';
+
+        const timerEl = document.getElementById('mouse-cps-timer');
+        if (timerEl) timerEl.textContent = `${sec}.0s`;
+      });
+    });
 
     // 4. Reset Button
     resetBtn?.addEventListener('click', () => this.resetMouseStats());
@@ -1190,40 +1207,72 @@ const HardwareTools = {
 
   handleMouseWheel(e) {
     e.preventDefault();
-    this.mouse.wheelTotalScrolls++;
-    const isUp = e.deltaY < 0;
-    const direction = isUp ? 'UP' : 'DOWN';
-
-    // Check for Wheel Encoder Jumps / Anomalies (e.g. scrolling rapidly down and getting a random UP)
     const now = performance.now();
-    if (this.mouse.lastWheelDirection && direction !== this.mouse.lastWheelDirection && (now - this.mouse.lastWheelTime) < 60) {
-      this.mouse.wheelAnomaliesCount++;
-      const anomalyEl = document.getElementById('mouse-wheel-anomalies');
-      if (anomalyEl) anomalyEl.textContent = this.mouse.wheelAnomaliesCount;
+    const isUp = e.deltaY < 0;
+    const direction = isUp ? 1 : -1;
+
+    this.mouse.wheelTotalScrolls++;
+
+    if (this.mouse.lastWheelDirection !== 0 && this.mouse.lastWheelDirection !== direction) {
+      if (now - this.mouse.lastWheelTime < 140) {
+        this.mouse.wheelAnomaliesCount++;
+        const anomEl = document.getElementById('mouse-wheel-anomalies');
+        if (anomEl) {
+          anomEl.textContent = this.mouse.wheelAnomaliesCount;
+          anomEl.className = 'font-black text-2xl text-rose-500 animate-pulse';
+        }
+      }
     }
+
     this.mouse.lastWheelDirection = direction;
     this.mouse.lastWheelTime = now;
 
     const dirEl = document.getElementById('mouse-wheel-dir');
-    const deltaEl = document.getElementById('mouse-wheel-delta');
     const totalEl = document.getElementById('mouse-wheel-total');
 
-    if (dirEl) dirEl.textContent = isUp ? '↑ Вверх (Scroll Up)' : '↓ Вниз (Scroll Down)';
-    if (deltaEl) deltaEl.textContent = `${Math.round(e.deltaY)} px`;
+    if (dirEl) dirEl.textContent = isUp ? '↑ Вверх (Up)' : '↓ Вниз (Down)';
     if (totalEl) totalEl.textContent = this.mouse.wheelTotalScrolls;
 
-    // Visual Wheel flash
+    // Visual Wheel Flash & Direction Chevrons
     const wheelSvg = document.getElementById('mouse-btn-wheel');
     if (wheelSvg) {
       wheelSvg.classList.add('btn-pressed');
       clearTimeout(this.mouse._wheelTimeout);
       this.mouse._wheelTimeout = setTimeout(() => wheelSvg.classList.remove('btn-pressed'), 120);
     }
+
+    const upIndicator = document.getElementById('wheel-up-indicator');
+    const downIndicator = document.getElementById('wheel-down-indicator');
+    const cylinder = document.getElementById('wheel-visual-cylinder');
+
+    if (cylinder) {
+      cylinder.classList.remove('wheel-scrolling-up', 'wheel-scrolling-down');
+      void cylinder.offsetWidth; // trigger reflow
+      cylinder.classList.add(isUp ? 'wheel-scrolling-up' : 'wheel-scrolling-down');
+    }
+
+    if (isUp && upIndicator) {
+      upIndicator.classList.remove('opacity-20');
+      upIndicator.classList.add('opacity-100', 'scale-110');
+      clearTimeout(this.mouse._upTimer);
+      this.mouse._upTimer = setTimeout(() => {
+        upIndicator.classList.remove('opacity-100', 'scale-110');
+        upIndicator.classList.add('opacity-20');
+      }, 150);
+    } else if (!isUp && downIndicator) {
+      downIndicator.classList.remove('opacity-20');
+      downIndicator.classList.add('opacity-100', 'scale-110');
+      clearTimeout(this.mouse._downTimer);
+      this.mouse._downTimer = setTimeout(() => {
+        downIndicator.classList.remove('opacity-100', 'scale-110');
+        downIndicator.classList.add('opacity-20');
+      }, 150);
+    }
   },
 
-  handleCpsClick() {
+  handleCpsClick(e) {
     if (this.mouse.cpsCooldown) {
-      return; // Ignore spam clicks right after test finishes so result is not instantly dismissed
+      return; // Ignore spam clicks right after test finishes so result is never accidentally closed
     }
 
     const cpsBtn = document.getElementById('mouse-cps-btn');
@@ -1231,17 +1280,31 @@ const HardwareTools = {
     const valEl = document.getElementById('mouse-cps-val');
     const countEl = document.getElementById('mouse-cps-clicks');
 
+    // Create click ripple animation
+    if (cpsBtn && e) {
+      const rect = cpsBtn.getBoundingClientRect();
+      const circle = document.createElement('span');
+      const d = Math.max(rect.width, rect.height);
+      circle.style.width = circle.style.height = `${d}px`;
+      circle.style.left = `${(e.clientX || rect.left + rect.width / 2) - rect.left - d / 2}px`;
+      circle.style.top = `${(e.clientY || rect.top + rect.height / 2) - rect.top - d / 2}px`;
+      circle.classList.add('cps-click-ripple');
+      cpsBtn.appendChild(circle);
+      setTimeout(() => circle.remove(), 500);
+    }
+
+    const duration = this.mouse.cpsDuration || 5;
+
     if (!this.mouse.cpsActive) {
-      // Start 5-second CPS Test
+      // Start CPS Test with user-selected duration
       this.mouse.cpsActive = true;
       this.mouse.cpsClicks = 1;
-      this.mouse.cpsTimeLeft = 5;
+      this.mouse.cpsTimeLeft = duration;
 
-      if (timerEl) timerEl.textContent = '5.0s';
+      if (timerEl) timerEl.textContent = `${duration}.0s`;
       if (countEl) countEl.textContent = '1';
-      if (valEl) valEl.textContent = '0.2';
+      if (valEl) valEl.textContent = (1 / duration).toFixed(1);
 
-      // Live animated state in the purple button (fixed dimensions)
       if (cpsBtn) {
         cpsBtn.innerHTML = `
           <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full">
@@ -1250,7 +1313,7 @@ const HardwareTools = {
               <span>${this.t('cps_clicking', 'КЛИКАЙТЕ!', 'CLICK FAST!')}</span>
             </div>
             <div class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1.5">
-              <span id="mouse-cps-live-clicks">1</span> ${this.t('cps_clicks_word', 'кликов', 'clicks')} • <span id="mouse-cps-live-time">5.0s</span>
+              <span id="mouse-cps-live-clicks">1</span> ${this.t('cps_clicks_word', 'кликов', 'clicks')} • <span id="mouse-cps-live-time">${duration}.0s</span>
             </div>
           </div>
         `;
@@ -1260,7 +1323,7 @@ const HardwareTools = {
 
       this.mouse.cpsTimer = setInterval(() => {
         const elapsed = (performance.now() - startTime) / 1000;
-        const remaining = Math.max(0, 5 - elapsed);
+        const remaining = Math.max(0, duration - elapsed);
 
         if (timerEl) timerEl.textContent = `${remaining.toFixed(1)}s`;
         const liveTime = document.getElementById('mouse-cps-live-time');
@@ -1274,39 +1337,16 @@ const HardwareTools = {
           this.mouse.cpsActive = false;
           this.mouse.cpsCooldown = true;
 
-          // Cooldown prevents frantic spam-clicking from closing the result window
+          // Cooldown protects the result screen from spam clicks for 900ms
           setTimeout(() => {
             this.mouse.cpsCooldown = false;
           }, 900);
 
-          const finalCps = this.mouse.cpsClicks / 5;
+          const finalCps = this.mouse.cpsClicks / duration;
           if (valEl) valEl.textContent = finalCps.toFixed(1);
           if (timerEl) timerEl.textContent = this.t('cps_finished', 'Тест завершен!', 'Finished!');
 
-          let rankTitle, rankIcon, rankBadgeColor;
-          if (finalCps >= 14) {
-            rankTitle = this.t('cps_rank_godlike', 'Человек-молния', 'Godlike Clicker');
-            rankIcon = '<i data-lucide="zap" class="w-4 h-4 text-amber-500 shrink-0"></i>';
-            rankBadgeColor = 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800';
-          } else if (finalCps >= 11) {
-            rankTitle = this.t('cps_rank_pro', 'Киберспортсмен', 'Esports Pro');
-            rankIcon = '<i data-lucide="flame" class="w-4 h-4 text-rose-500 shrink-0"></i>';
-            rankBadgeColor = 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800';
-          } else if (finalCps >= 8) {
-            rankTitle = this.t('cps_rank_fast', 'Быстрый кликер', 'Fast Clicker');
-            rankIcon = '<i data-lucide="rocket" class="w-4 h-4 text-indigo-500 shrink-0"></i>';
-            rankBadgeColor = 'bg-indigo-100 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
-          } else if (finalCps >= 5) {
-            rankTitle = this.t('cps_rank_normal', 'Обычная скорость', 'Normal Speed');
-            rankIcon = '<i data-lucide="mouse" class="w-4 h-4 text-emerald-500 shrink-0"></i>';
-            rankBadgeColor = 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
-          } else {
-            rankTitle = this.t('cps_rank_slow', 'Неторопливый клик', 'Casual Clicker');
-            rankIcon = '<i data-lucide="gauge" class="w-4 h-4 text-neutral-400 shrink-0"></i>';
-            rankBadgeColor = 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700';
-          }
-
-          const isNewBest = finalCps > this.mouse.cpsBest && this.mouse.cpsClicks > 5;
+          const isNewBest = finalCps > this.mouse.cpsBest && this.mouse.cpsClicks > 3;
 
           if (finalCps > this.mouse.cpsBest) {
             this.mouse.cpsBest = finalCps;
@@ -1315,10 +1355,10 @@ const HardwareTools = {
             if (bestEl) bestEl.textContent = finalCps.toFixed(1);
           }
 
-          // RENDER FULL RICH RESULT (NO EMOJIS, LUCIDE ICONS ONLY)
+          // Clean, pure result without rank titles
           if (cpsBtn) {
             cpsBtn.innerHTML = `
-              <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full animate-fade-in py-1">
+              <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full py-1 animate-fade-in">
                 <div class="flex items-center gap-1.5 mb-0.5">
                   <span class="text-[11px] sm:text-xs uppercase font-extrabold tracking-wider text-indigo-600 dark:text-indigo-400">
                     ${this.t('cps_result_title', 'Результат теста', 'Test Result')}
@@ -1330,11 +1370,8 @@ const HardwareTools = {
                   ${finalCps.toFixed(1)} <span class="text-lg sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400">CPS</span>
                 </div>
 
-                <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold border ${rankBadgeColor} my-1 shadow-sm">
-                  ${rankIcon}
-                  <span>${rankTitle}</span>
-                  <span class="opacity-40">•</span>
-                  <span>${this.mouse.cpsClicks} ${this.t('cps_clicks_in_5s', 'кликов за 5 сек', 'clicks in 5s')}</span>
+                <div class="text-xs font-mono font-bold text-neutral-600 dark:text-neutral-300 my-1">
+                  ${this.mouse.cpsClicks} ${this.t('cps_clicks_word', 'кликов', 'clicks')} / ${duration}с
                 </div>
 
                 <div class="text-[11px] text-indigo-600/80 dark:text-indigo-300/80 font-medium mt-1 flex items-center gap-1.5">
