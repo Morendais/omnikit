@@ -1,0 +1,31 @@
+{
+  "name": "omnikit-tools",
+  "version": "1.0.0",
+  "description": "Zero-knowledge, 100% in-browser client-side web tools and utilities",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Morendais/omnikit.git"
+  },
+  "keywords": [
+    "browser-tools",
+    "client-side",
+    "zero-knowledge",
+    "privacy",
+    "image-processing",
+    "pdf-tools",
+    "crypto",
+    "webaudio",
+    "webcrypto",
+    "utilities"
+  ],
+  "author": "Morendais",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Morendais/omnikit/issues"
+  },
+  "homepage": "https://github.com/Morendais/omnikit#readme"
+}
