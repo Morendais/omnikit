@@ -4,6 +4,12 @@
  */
 
 const MediaExtended = {
+  _safeBlobUrl(url) {
+    if (typeof url === 'string' && url.startsWith('blob:')) {
+      return url;
+    }
+    return '';
+  },
   init() {
     this.bindResizer();
     this.bindFaviconGenerator();
@@ -347,7 +353,8 @@ const MediaExtended = {
         const pageDiv = printWindow.document.createElement('div');
         pageDiv.className = 'page';
         const img = printWindow.document.createElement('img');
-        img.src = URL.createObjectURL(file);
+        const safeUrl = this._safeBlobUrl(URL.createObjectURL(file));
+        if (safeUrl) img.src = safeUrl;
         pageDiv.appendChild(img);
         contentDiv.appendChild(pageDiv);
       }
@@ -405,7 +412,8 @@ const MediaExtended = {
       statusBox.appendChild(card);
 
       const showSuccessResult = (blob, outExt, outMime) => {
-        const url = URL.createObjectURL(blob);
+        const url = this._safeBlobUrl(URL.createObjectURL(blob));
+        if (!url) return;
         statusBox.textContent = '';
         
         const resCard = document.createElement('div');

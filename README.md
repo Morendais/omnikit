@@ -11,6 +11,10 @@ A comprehensive open-source collection of **40+ high-performance client-side bro
 **100% in-browser processing. Zero server compute. Zero data leakage.**
 
 <p align="center">
+  <img src="assets/images/omnikit-showcase.png" alt="OmniKit Web Application Interface" width="100%" />
+</p>
+
+<p align="center">
   <img src="assets/images/workflow-batch.svg" alt="Batch Processing 100+ Photos Workflow" width="100%" />
 </p>
 

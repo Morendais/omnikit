@@ -128,12 +128,14 @@ const TextTools = {
     });
 
     document.getElementById('btn-clean-html')?.addEventListener('click', () => {
-      if (typeof DOMParser !== 'undefined') {
-        const doc = new DOMParser().parseFromString(textarea.value, 'text/html');
-        textarea.value = (doc.body.textContent || '').trim();
-      } else {
-        textarea.value = textarea.value.replace(/<[^>]+>/g, '').trim();
-      }
+      let text = textarea.value || '';
+      let prev;
+      do {
+        prev = text;
+        text = text.replace(/<[^<>]*>/g, '');
+      } while (text !== prev);
+      text = text.replace(/[<>]/g, '');
+      textarea.value = text.trim();
       this.updateStats(textarea.value);
     });
   },
