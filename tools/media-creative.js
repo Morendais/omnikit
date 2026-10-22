@@ -25,6 +25,16 @@ const MediaCreative = {
     });
   },
 
+    escapeHtml(str) {
+    if (!str && str !== 0) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
   t(ru, en) {
     const lang = (window.I18N && window.I18N.currentLang) || (window.I18n && window.I18n.currentLang) || 'ru';
     return lang === 'en' ? en : ru;
@@ -426,7 +436,7 @@ const MediaCreative = {
 
       return `
         <button type="button" class="wm-layer-chip px-2.5 py-1 rounded-lg text-xs font-medium border transition flex items-center gap-1.5 shrink-0 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700 hover:border-indigo-400'}" data-layer-id="${l.id}">
-          <span class="truncate max-w-[130px]">${label}</span>
+          <span class="truncate max-w-[130px]">${this.escapeHtml(label)}</span>
           <span class="wm-del-chip text-neutral-400 hover:text-rose-400 ml-1 p-0.5">✕</span>
         </button>
       `;
@@ -461,7 +471,7 @@ const MediaCreative = {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div class="md:col-span-2">
             <label class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1">${this.t('Текст водяного знака:', 'Watermark text:')}</label>
-            <input type="text" id="wm-insp-text" value="${active.text}" class="w-full p-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 font-medium text-xs">
+            <input type="text" id="wm-insp-text" value="${this.escapeHtml(active.text)}" class="w-full p-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 font-medium text-xs">
           </div>
           <div>
             <label class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1">${this.t('Быстрое положение:', 'Quick position:')}</label>

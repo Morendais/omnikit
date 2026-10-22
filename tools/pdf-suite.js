@@ -13,6 +13,16 @@ const PdfSuite = {
   pdfImages: [],
   mergeFiles: [],
 
+    escapeHtml(str) {
+    if (!str && str !== 0) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
   init() {
     this.bindTabs();
     this.bindImgToPdf();
@@ -77,7 +87,7 @@ const PdfSuite = {
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${files.map((f, i) => `
               <div class="p-2 border border-neutral-200 dark:border-neutral-800 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-[11px] truncate flex items-center justify-between">
-                <span class="truncate">${f.name}</span>
+                <span class="truncate">${this.escapeHtml(f.name)}</span>
                 <button type="button" class="text-red-500 hover:text-red-700 ml-1 remove-img-btn" data-idx="${i}">✕</button>
               </div>
             `).join('')}
@@ -317,7 +327,7 @@ const PdfSuite = {
           <div class="space-y-1.5">
             ${this.mergeFiles.map((f, i) => `
               <div class="p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#14161a] text-xs flex items-center justify-between">
-                <span class="font-medium truncate mr-2">${i + 1}. ${f.name}</span>
+                <span class="font-medium truncate mr-2">${i + 1}. ${this.escapeHtml(f.name)}</span>
                 <button type="button" class="text-red-500 hover:text-red-700 remove-merge-file" data-idx="${i}">✕</button>
               </div>
             `).join('')}
