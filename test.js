@@ -3,9 +3,9 @@ const tools = require('./index.js');
 
 console.log('Testing OmniKit Tools module exports...\n');
 
-// 1. Verify all 16 modules are exported
+// 1. Verify all 17 modules are exported
 const expectedModules = [
-  'AudioTools', 'BgRemover', 'DevTools', 'FaviconStudio',
+  'AudioTools', 'BatchImageStudio', 'BgRemover', 'DevTools', 'FaviconStudio',
   'HardwareTools', 'ImageTools', 'MediaCreative', 'MediaExtended',
   'OcrTool', 'OfficeTools', 'PdfSuite', 'QrTool',
   'TextTools', 'TokenTool', 'TxtEditor', 'UtilityExtended'

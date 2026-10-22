@@ -7,6 +7,7 @@
  */
 
 const AudioTools = require('./tools/audio-tools.js');
+const BatchImageStudio = require('./tools/batch-image.js');
 const BgRemover = require('./tools/bg-remover.js');
 const DevTools = require('./tools/dev-tools.js');
 const FaviconStudio = require('./tools/favicon-studio.js');
@@ -25,6 +26,7 @@ const UtilityExtended = require('./tools/utility-extended.js');
 
 module.exports = {
   AudioTools,
+  BatchImageStudio,
   BgRemover,
   DevTools,
   FaviconStudio,
