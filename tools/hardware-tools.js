@@ -1316,20 +1316,16 @@ const HardwareTools = {
     }
 
     if (isUp && upIndicator) {
-      upIndicator.classList.remove('opacity-20');
-      upIndicator.classList.add('opacity-100', 'scale-110');
+      upIndicator.classList.remove('text-neutral-400', 'dark:text-neutral-500', 'bg-neutral-100', 'dark:bg-neutral-800'); upIndicator.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'scale-105');
       clearTimeout(this.mouse._upTimer);
       this.mouse._upTimer = setTimeout(() => {
-        upIndicator.classList.remove('opacity-100', 'scale-110');
-        upIndicator.classList.add('opacity-20');
+        upIndicator.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'scale-105'); upIndicator.classList.add('text-neutral-400', 'dark:text-neutral-500', 'bg-neutral-100', 'dark:bg-neutral-800');
       }, 150);
     } else if (!isUp && downIndicator) {
-      downIndicator.classList.remove('opacity-20');
-      downIndicator.classList.add('opacity-100', 'scale-110');
+      downIndicator.classList.remove('text-neutral-400', 'dark:text-neutral-500', 'bg-neutral-100', 'dark:bg-neutral-800'); downIndicator.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'scale-105');
       clearTimeout(this.mouse._downTimer);
       this.mouse._downTimer = setTimeout(() => {
-        downIndicator.classList.remove('opacity-100', 'scale-110');
-        downIndicator.classList.add('opacity-20');
+        downIndicator.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'scale-105'); downIndicator.classList.add('text-neutral-400', 'dark:text-neutral-500', 'bg-neutral-100', 'dark:bg-neutral-800');
       }, 150);
     }
   },

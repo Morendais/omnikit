@@ -1,12 +1,10 @@
 /**
- * OmniKit AI Background Remover
- * 100% Client-Side In-Browser AI Segmentation using @imgly/background-removal + Fallback Engine
- * Runs via WebAssembly / WebGPU / Canvas on local device. Zero server uploads.
+ * OmniKit In-Browser Background Remover
+ * 100% Client-Side In-Browser Segmentation Engine
+ * Runs completely via Canvas 2D & Web APIs on local device. Zero server uploads. Zero external CDNs.
  */
 
 const BgRemover = {
-  imglyModule: null,
-  isModelLoaded: false,
   isProcessing: false,
   currentFile: null,
   originalImage: null,
@@ -16,29 +14,6 @@ const BgRemover = {
 
   init() {
     this.bindEvents();
-  },
-
-  async getImgly() {
-    if (this.imglyModule) return this.imglyModule;
-    
-    const cdnUrls = [
-      'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
-      'https://esm.sh/@imgly/background-removal@1.7.0'
-    ];
-
-    for (const url of cdnUrls) {
-      try {
-        const module = await import(url);
-        if (module && (module.removeBackground || module.default?.removeBackground)) {
-          this.imglyModule = module.removeBackground ? module : module.default;
-          return this.imglyModule;
-        }
-      } catch (err) {
-        console.warn(`Could not load @imgly from ${url}:`, err.message);
-      }
-    }
-
-    throw new Error('All neural ESM CDN mirrors unreachable');
   },
 
   bindEvents() {
@@ -77,7 +52,6 @@ const BgRemover = {
     });
 
     resetBtn?.addEventListener('click', () => this.reset());
-
     downloadBtn?.addEventListener('click', () => this.downloadResult());
 
     // Background color toggles
@@ -123,7 +97,7 @@ const BgRemover = {
     resultState?.classList.add('hidden');
   },
 
-  async fallbackCanvasRemove(file) {
+  async canvasRemove(file) {
     return new Promise((resolve) => {
       const img = new Image();
       const objUrl = URL.createObjectURL(file);
@@ -140,34 +114,49 @@ const BgRemover = {
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
-        // Sample corner colors for dominant background hue
-        const corners = [
+        // Sample border perimeter pixels for accurate background color detection
+        let bgR = 0, bgG = 0, bgB = 0;
+        const samples = [
           0,
           (w - 1) * 4,
           ((h - 1) * w) * 4,
-          ((h - 1) * w + (w - 1)) * 4
+          ((h - 1) * w + (w - 1)) * 4,
+          (Math.floor(w / 2)) * 4,
+          ((h - 1) * w + Math.floor(w / 2)) * 4,
+          (Math.floor(h / 2) * w) * 4,
+          (Math.floor(h / 2) * w + (w - 1)) * 4
         ];
-        let bgR = 0, bgG = 0, bgB = 0;
-        corners.forEach(idx => {
+        samples.forEach(idx => {
           bgR += data[idx];
           bgG += data[idx + 1];
           bgB += data[idx + 2];
         });
-        bgR /= 4; bgG /= 4; bgB /= 4;
+        bgR /= samples.length;
+        bgG /= samples.length;
+        bgB /= samples.length;
 
-        // Color distance segmentation threshold
-        const threshold = 38;
+        // Color distance segmentation threshold with soft feathering
+        const threshold = 40;
+        const feather = 20;
+
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
 
-          const diff = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+          // Weighted Euclidean color distance
+          const diff = Math.sqrt(
+            0.299 * (r - bgR) ** 2 +
+            0.587 * (g - bgG) ** 2 +
+            0.114 * (b - bgB) ** 2
+          );
+
           if (diff < threshold) {
-            data[i + 3] = 0; // Transparent
-          } else if (diff < threshold + 18) {
-            // Soft feather edge
-            data[i + 3] = Math.round(((diff - threshold) / 18) * 255);
+            data[i + 3] = 0; // 100% transparent
+          } else if (diff < threshold + feather) {
+            // Soft anti-aliased edge transition
+            const alphaFactor = (diff - threshold) / feather;
+            data[i + 3] = Math.round(data[i + 3] * alphaFactor);
           }
         }
 
@@ -201,11 +190,11 @@ const BgRemover = {
     resultState?.classList.add('hidden');
     loadingState?.classList.remove('hidden');
 
-    if (progressFill) progressFill.style.width = '10%';
-    if (progressPercent) progressPercent.textContent = '10%';
     const isRu = (window.I18N?.currentLang || 'en') === 'ru';
+    if (progressFill) progressFill.style.width = '20%';
+    if (progressPercent) progressPercent.textContent = '20%';
     if (progressLabel) {
-      progressLabel.textContent = isRu ? 'Инициализация AI модели...' : 'Initializing AI model...';
+      progressLabel.textContent = isRu ? 'Анализ цветовых контуров...' : 'Analyzing color contours...';
     }
 
     try {
@@ -223,49 +212,25 @@ const BgRemover = {
       });
       this.originalImage = origImg;
 
-      // 2. Remove background via neural @imgly or robust canvas fallback
-      let resultBlob;
-      try {
-        if (progressLabel) {
-          progressLabel.textContent = isRu ? 'Загрузка весов нейросети в браузер...' : 'Loading neural weights into browser...';
-        }
+      // Small delay for UI smoothness
+      await new Promise(r => setTimeout(r, 60));
 
-        const imgly = await this.getImgly();
-        const removeBackground = imgly.removeBackground || imgly;
-
-        const config = {
-          publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
-          debug: false,
-          progress: (key, current, total) => {
-            let pct = 0;
-            if (total > 0) {
-              pct = Math.min(100, Math.round((current / total) * 100));
-            }
-
-            if (key.includes('fetch')) {
-              if (progressLabel) progressLabel.textContent = isRu ? `Загрузка AI модели: ${pct}%...` : `Fetching model weights: ${pct}%...`;
-              if (progressFill) progressFill.style.width = `${Math.max(10, Math.round(pct * 0.7))}%`;
-              if (progressPercent) progressPercent.textContent = `${Math.max(10, Math.round(pct * 0.7))}%`;
-            } else if (key.includes('compute')) {
-              const computePhase = key.replace('compute:', '');
-              if (progressLabel) progressLabel.textContent = isRu ? `Нейросеть вырезает фон (${computePhase})...` : `AI segmenting background (${computePhase})...`;
-              const compPct = 70 + Math.round((pct || 50) * 0.3);
-              if (progressFill) progressFill.style.width = `${compPct}%`;
-              if (progressPercent) progressPercent.textContent = `${compPct}%`;
-            }
-          }
-        };
-
-        resultBlob = await removeBackground(file, config);
-      } catch (neuralErr) {
-        console.warn('Neural model network issue, using smart canvas segmentation fallback:', neuralErr);
-        if (progressLabel) {
-          progressLabel.textContent = isRu ? 'Обработка контуров на холсте...' : 'Segmenting background contours on canvas...';
-        }
-        if (progressFill) progressFill.style.width = '75%';
-        if (progressPercent) progressPercent.textContent = '75%';
-        resultBlob = await this.fallbackCanvasRemove(file);
+      if (progressFill) progressFill.style.width = '60%';
+      if (progressPercent) progressPercent.textContent = '60%';
+      if (progressLabel) {
+        progressLabel.textContent = isRu ? 'Сегментация и удаление фона...' : 'Segmenting background contours...';
       }
+
+      // 2. Perform in-browser client-side segmentation
+      const resultBlob = await this.canvasRemove(file);
+
+      if (progressFill) progressFill.style.width = '90%';
+      if (progressPercent) progressPercent.textContent = '90%';
+      if (progressLabel) {
+        progressLabel.textContent = isRu ? 'Финальная отрисовка...' : 'Final rendering...';
+      }
+
+      await new Promise(r => setTimeout(r, 60));
 
       if (progressFill) progressFill.style.width = '100%';
       if (progressPercent) progressPercent.textContent = '100%';
@@ -288,7 +253,6 @@ const BgRemover = {
       loadingState?.classList.add('hidden');
       resultState?.classList.remove('hidden');
 
-      // Populate original preview
       const origPreview = document.getElementById('bg-orig-preview');
       if (origPreview) origPreview.src = originalDataUrl;
 
@@ -297,24 +261,7 @@ const BgRemover = {
 
     } catch (err) {
       console.error('Background removal error:', err);
-      // Even if worst case happens, fallback silently to canvas
-      try {
-        const fallbackBlob = await this.fallbackCanvasRemove(file);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const cutImg = new Image();
-          cutImg.onload = () => {
-            this.cutoutImage = cutImg;
-            loadingState?.classList.add('hidden');
-            resultState?.classList.remove('hidden');
-            this.renderCanvas();
-          };
-          cutImg.src = e.target.result;
-        };
-        reader.readAsDataURL(fallbackBlob);
-      } catch (e) {
-        this.reset();
-      }
+      this.reset();
     } finally {
       this.isProcessing = false;
     }
