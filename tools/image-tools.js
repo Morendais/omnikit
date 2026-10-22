@@ -108,32 +108,50 @@ const ImageTools = {
       const compSizeEl = document.getElementById('compress-comp-size');
       const savingsEl = document.getElementById('compress-savings');
       const previewComp = document.getElementById('compress-preview-comp');
+      const previewOrig = document.getElementById('compress-preview-orig');
       const downloadBtn = document.getElementById('compress-download');
+      const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
 
-      compSizeEl.textContent = this.formatBytes(blob.size);
+      // Smart compression guard: if compressed >= original, keep original without quality loss
+      const isOptimallyCompressed = blob.size >= this.currentFile.size;
+      const finalBlob = isOptimallyCompressed ? this.currentFile : blob;
+      const finalSize = isOptimallyCompressed ? this.currentFile.size : blob.size;
+
+      compSizeEl.textContent = this.formatBytes(finalSize);
       
-      const diff = this.currentFile.size - blob.size;
+      const diff = this.currentFile.size - finalSize;
       const percent = Math.round((diff / this.currentFile.size) * 100);
-      if (percent > 0) {
+
+      if (isOptimallyCompressed) {
+        savingsEl.textContent = isRu ? 'Уже сжато оптимально' : 'Already optimally compressed';
+        savingsEl.className = 'text-xs font-medium px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20';
+        downloadBtn.title = isRu ? 'Файл уже оптимален — скачается оригинал' : 'File is already optimal — original will be downloaded';
+      } else if (percent > 0) {
         savingsEl.textContent = `-${percent}%`;
-        savingsEl.className = 'text-xs font-mono font-medium px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700';
+        savingsEl.className = 'text-xs font-mono font-medium px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+        downloadBtn.title = '';
       } else {
         savingsEl.textContent = `0%`;
         savingsEl.className = 'text-xs font-mono font-medium px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-500 border border-neutral-300 dark:border-neutral-700';
+        downloadBtn.title = '';
       }
 
       if (this.currentCompUrl) {
         URL.revokeObjectURL(this.currentCompUrl);
       }
-      this.currentCompUrl = URL.createObjectURL(blob);
+      this.currentCompUrl = URL.createObjectURL(finalBlob);
       const url = this.currentCompUrl;
-      previewComp.src = url;
+      previewComp.src = isOptimallyCompressed && previewOrig ? previewOrig.src : url;
 
       downloadBtn.onclick = () => {
         const a = document.createElement('a');
-        const ext = mimeType === 'image/webp' ? 'webp' : 'jpg';
-        const baseName = this.currentFile.name.substring(0, this.currentFile.name.lastIndexOf('.')) || 'image';
-        a.download = `compressed_${baseName}.${ext}`;
+        if (isOptimallyCompressed) {
+          a.download = this.currentFile.name;
+        } else {
+          const ext = mimeType === 'image/webp' ? 'webp' : 'jpg';
+          const baseName = this.currentFile.name.substring(0, this.currentFile.name.lastIndexOf('.')) || 'image';
+          a.download = `compressed_${baseName}.${ext}`;
+        }
         a.href = url;
         a.click();
       };
@@ -312,10 +330,9 @@ const ImageTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.ImageTools = ImageTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = ImageTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.ImageTools = ImageTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = ImageTools;
 }

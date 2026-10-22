@@ -265,10 +265,9 @@ const FaviconStudio = {
   }
 };
 
-if (typeof window !== 'undefined') window.FaviconStudio = FaviconStudio;
-if (typeof module !== 'undefined' && module.exports) module.exports = FaviconStudio;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.FaviconStudio = FaviconStudio;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = FaviconStudio;
 }

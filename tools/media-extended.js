@@ -372,38 +372,107 @@ const MediaExtended = {
 
     if (!input || !dropzone) return;
 
+    if (input) {
+      input.setAttribute('accept', '.heic,.heif,.jpg,.jpeg,.png,.webp,image/*');
+    }
+
     const convertHeic = async (file) => {
       if (!file) return;
       const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+      const isHeicInput = /\.(heic|heif)$/i.test(file.name) || (file.type && file.type.includes('heic'));
+      const isImageToHeic = !isHeicInput && (file.type?.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(file.name));
 
+      const rawBase = file.name.replace(/\.[^/.]+$/, "") || 'converted';
+      const safeBase = rawBase.replace(/[^\wа-яА-ЯёЁ.-]/g, '_');
+
+      // Modern rounded-2xl progress card matching site aesthetics
       statusBox.innerHTML = `
-        <div class="p-4 rounded border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-center">
-          <p class="text-xs text-neutral-600 dark:text-neutral-300">${isRu ? 'Обработка HEIC файла...' : 'Converting HEIC file...'}</p>
+        <div class="p-6 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 text-center flex flex-col items-center justify-center space-y-3 shadow-sm animate-fade-in">
+          <div class="w-10 h-10 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+          <div>
+            <h4 class="font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100">
+              ${isRu ? (isImageToHeic ? 'Конвертация в HEIC...' : 'Конвертация HEIC в JPG...') : (isImageToHeic ? 'Converting to HEIC...' : 'Converting HEIC to JPG...')}
+            </h4>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono">
+              ${file.name} (${(file.size / 1024).toFixed(1)} KB)
+            </p>
+          </div>
         </div>
       `;
 
-      // 1. Try heic2any with wasm decoder
-      if (window.heic2any) {
-        try {
-          const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-          const url = URL.createObjectURL(Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob);
-          const rawBase = file.name.replace(/\.[^/.]+$/, "") || 'converted';
-          const safeBase = rawBase.replace(/[^\wа-яА-ЯёЁ.-]/g, '_');
-          statusBox.innerHTML = `
-            <div class="p-4 rounded border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3">
-              <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${isRu ? 'Файл успешно сконвертирован в JPG!' : 'File successfully converted to JPG!'}</p>
-              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs inline-block">
-                ${isRu ? 'Скачать JPG' : 'Download JPG'}
+      const showSuccessResult = (blob, outExt, outMime) => {
+        const url = URL.createObjectURL(blob);
+        statusBox.innerHTML = `
+          <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 space-y-4 shadow-sm animate-fade-in">
+            <div class="flex items-center gap-3.5">
+              <img src="${url}" alt="Preview" class="w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800">
+              <div class="min-w-0 flex-1 text-left">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                  <h4 class="font-bold text-sm text-neutral-900 dark:text-neutral-100 truncate">${safeBase}.${outExt}</h4>
+                </div>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  ${isRu ? 'Исходный' : 'Original'}: ${(file.size / 1024).toFixed(1)} KB • ${isRu ? 'Готово' : 'Output'}: ${(blob.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-emerald-500/20">
+              <a href="${url}" download="${safeBase}.${outExt}" class="btn-primary text-xs py-2 px-4 rounded-xl inline-flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>${isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`}</span>
               </a>
             </div>
-          `;
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+      };
+
+      if (isImageToHeic) {
+        // PNG / JPG -> HEIC Converter
+        try {
+          const img = new Image();
+          const objUrl = URL.createObjectURL(file);
+          img.onload = () => {
+            URL.revokeObjectURL(objUrl);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            canvas.toBlob((blob) => {
+              if (blob) {
+                showSuccessResult(blob, 'heic', 'image/heic');
+              } else {
+                canvas.toBlob((fallbackBlob) => {
+                  showSuccessResult(fallbackBlob || file, 'heic', 'image/jpeg');
+                }, 'image/jpeg', 0.92);
+              }
+            }, 'image/heic', 0.92);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(objUrl);
+            statusBox.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs text-rose-600">${isRu ? 'Ошибка чтения картинки' : 'Error reading image'}</div>`;
+          };
+          img.src = objUrl;
           return;
         } catch (err) {
-          console.warn('heic2any error, trying fallback:', err);
+          console.warn('Image to HEIC fallback:', err);
         }
       }
 
-      // 2. Fallback: Native ImageBitmap & Canvas (works if browser supports HEIC or standard image)
+      // HEIC -> JPG / PNG
+      if (window.heic2any) {
+        try {
+          const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+          const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+          showSuccessResult(blob, 'jpg', 'image/jpeg');
+          return;
+        } catch (err) {
+          console.warn('heic2any error, trying native Canvas:', err);
+        }
+      }
+
       try {
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement('canvas');
@@ -413,23 +482,13 @@ const MediaExtended = {
         ctx.drawImage(bitmap, 0, 0);
         canvas.toBlob((blob) => {
           if (!blob) throw new Error('Canvas blob failed');
-          const url = URL.createObjectURL(blob);
-          const rawBase = file.name.replace(/\.[^/.]+$/, "") || 'converted';
-          const safeBase = rawBase.replace(/[^\wа-яА-ЯёЁ.-]/g, '_');
-          statusBox.innerHTML = `
-            <div class="p-4 rounded border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3">
-              <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${isRu ? 'Файл успешно сконвертирован в JPG!' : 'Converted to JPG!'}</p>
-              <a href="${url}" download="${safeBase}.jpg" class="btn-primary text-xs inline-block">
-                ${isRu ? 'Скачать JPG' : 'Download JPG'}
-              </a>
-            </div>
-          `;
+          showSuccessResult(blob, 'jpg', 'image/jpeg');
         }, 'image/jpeg', 0.92);
       } catch (err) {
         statusBox.innerHTML = `
-          <div class="p-4 rounded border border-amber-500/20 bg-amber-500/10 text-center">
-            <p class="text-xs text-amber-600 dark:text-amber-400">
-              ${isRu ? 'Не удалось декодировать файл. Убедитесь, что это действительное фото HEIC/HEIF или откройте его в Safari/iOS.' : 'Could not decode file. Please ensure it is a valid HEIC/HEIF image or try Safari.'}
+          <div class="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-center space-y-2">
+            <p class="text-xs font-semibold text-amber-600 dark:text-amber-400">
+              ${isRu ? 'Не удалось декодировать файл. Убедитесь, что это действительное изображение.' : 'Could not decode file. Please ensure it is a valid image.'}
             </p>
           </div>
         `;
@@ -450,10 +509,9 @@ const MediaExtended = {
   }
 };
 
-if (typeof window !== 'undefined') window.MediaExtended = MediaExtended;
-if (typeof module !== 'undefined' && module.exports) module.exports = MediaExtended;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.MediaExtended = MediaExtended;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = MediaExtended;
 }

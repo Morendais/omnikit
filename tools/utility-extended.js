@@ -504,10 +504,9 @@ const UtilityExtended = {
   }
 };
 
-if (typeof window !== 'undefined') window.UtilityExtended = UtilityExtended;
-if (typeof module !== 'undefined' && module.exports) module.exports = UtilityExtended;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.UtilityExtended = UtilityExtended;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = UtilityExtended;
 }

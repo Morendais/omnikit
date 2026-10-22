@@ -291,10 +291,9 @@ const BgRemover = {
   }
 };
 
-if (typeof window !== 'undefined') window.BgRemover = BgRemover;
-if (typeof module !== 'undefined' && module.exports) module.exports = BgRemover;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.BgRemover = BgRemover;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = BgRemover;
 }

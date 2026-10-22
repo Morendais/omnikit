@@ -234,10 +234,9 @@ const TxtEditor = {
   }
 };
 
-if (typeof window !== 'undefined') window.TxtEditor = TxtEditor;
-if (typeof module !== 'undefined' && module.exports) module.exports = TxtEditor;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.TxtEditor = TxtEditor;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = TxtEditor;
 }

@@ -27,6 +27,12 @@ const TokenTool = {
     { id: 'deepseek/deepseek-r1-0528', name: 'DeepSeek R1', provider: 'deepseek', inputPerM: 0.50, outputPerM: 2.15, context: 128000, date: '2025-05' },
     { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Meta Llama 3.3 70B', provider: 'meta', inputPerM: 0.10, outputPerM: 0.32, context: 131072, date: '2025-12' },
 
+        { id: 'openai/o3-mini', name: 'OpenAI o3-mini (Reasoning)', provider: 'openai', inputPerM: 1.10, outputPerM: 4.40, context: 200000, date: '2025-01' },
+    { id: 'openai/gpt-4.5-preview', name: 'OpenAI GPT-4.5 Preview', provider: 'openai', inputPerM: 75.00, outputPerM: 150.00, context: 128000, date: '2025-02' },
+    { id: 'anthropic/claude-3.7-sonnet', name: 'Claude 3.7 Sonnet (Hybrid Reasoning)', provider: 'anthropic', inputPerM: 3.00, outputPerM: 15.00, context: 200000, date: '2025-02' },
+    { id: 'google/gemini-2.5-pro', name: 'Google Gemini 2.5 Pro', provider: 'google', inputPerM: 1.25, outputPerM: 5.00, context: 2000000, date: '2025-03' },
+    { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1 (Open Reasoning)', provider: 'deepseek', inputPerM: 0.55, outputPerM: 2.19, context: 128000, date: '2025-01' },
+
     // Established Benchmark Models
     { id: 'openai/gpt-4o', name: 'OpenAI GPT-4o', provider: 'openai', inputPerM: 2.50, outputPerM: 10.00, context: 128000, date: '2024-05' },
     { id: 'openai/gpt-4o-mini', name: 'OpenAI GPT-4o Mini', provider: 'openai', inputPerM: 0.15, outputPerM: 0.60, context: 128000, date: '2024-07' },
@@ -43,43 +49,44 @@ const TokenTool = {
   currentFilter: 'all',
   searchQuery: '',
   tokens: 0,
+  reasoningEffort: 'none',
+  reasoningTokens: 0,
+
+  
+  bindReasoningEffort() {
+    const buttons = document.querySelectorAll('.token-reasoning-btn');
+    const effortTokensMap = { none: 0, low: 1000, med: 4000, high: 16000 };
+    buttons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        buttons.forEach(b => {
+          b.classList.remove('active', 'bg-white', 'dark:bg-neutral-700', 'text-neutral-900', 'dark:text-white', 'shadow-sm');
+          b.classList.add('text-neutral-500', 'hover:text-neutral-900', 'dark:hover:text-neutral-100');
+        });
+        const target = e.currentTarget;
+        target.classList.add('active', 'bg-white', 'dark:bg-neutral-700', 'text-neutral-900', 'dark:text-white', 'shadow-sm');
+        target.classList.remove('text-neutral-500', 'hover:text-neutral-900', 'dark:hover:text-neutral-100');
+
+        const effort = target.getAttribute('data-effort') || 'none';
+        this.reasoningEffort = effort;
+        this.reasoningTokens = effortTokensMap[effort] || 0;
+        this.calculate();
+      });
+    });
+  },
 
   init() {
     this.models = [...this.baseModels];
     this.bindEvents();
+    this.bindReasoningEffort();
     this.loadCachedModels();
     this.fetchLiveModels();
   },
 
   bindEvents() {
     const textarea = document.getElementById('token-input');
-    const clearBtn = document.getElementById('token-clear-btn');
-    const pasteBtn = document.getElementById('token-paste-btn');
 
     if (textarea) {
       textarea.addEventListener('input', () => this.calculate());
-    }
-
-    if (clearBtn && textarea) {
-      clearBtn.addEventListener('click', () => {
-        textarea.value = '';
-        this.calculate();
-        textarea.focus();
-      });
-    }
-
-    if (pasteBtn && textarea) {
-      pasteBtn.addEventListener('click', async () => {
-        try {
-          const text = await navigator.clipboard.readText();
-          if (text) {
-            textarea.value = text;
-            this.calculate();
-          }
-        } catch (e) {
-          textarea.focus();
-        }
-      });
     }
 
     // Sample prompt presets
@@ -298,7 +305,7 @@ const TokenTool = {
         max_tokens: 4096
       }, null, 2);
     } else if (type === 'russian') {
-      textarea.value = `Создай подробный маркетинговый план для запуска нового веб-сервиса утилит в Рунете. Опиши стратегию привлечения трафика через поисковую оптимизацию (SEO в Яндексе и Google), виральный маркетинг в Telegram и Shorts, а также ключевые метрики удержания пользователей (Retention Rate).`;
+      textarea.value = `Напишите высокопроизводительную функцию на TypeScript для обработки потоковых данных с автоматическим восстановлением соединения и нулевыми утечками памяти.`;
     }
     this.calculate();
   },
@@ -337,7 +344,12 @@ const TokenTool = {
     const charEl = document.getElementById('token-chars-val');
     const readingEl = document.getElementById('token-reading-val');
 
-    if (tokenEl) tokenEl.textContent = this.tokens.toLocaleString();
+    if (tokenEl) {
+      const totalDisplay = this.reasoningTokens > 0 
+        ? `${this.tokens.toLocaleString()} (+${this.reasoningTokens.toLocaleString()} reasoning)`
+        : this.tokens.toLocaleString();
+      tokenEl.textContent = totalDisplay;
+    }
     if (wordEl) wordEl.textContent = words.toLocaleString();
     if (charEl) charEl.textContent = chars.toLocaleString();
     if (readingEl) {
@@ -481,10 +493,9 @@ const TokenTool = {
   }
 };
 
-if (typeof window !== 'undefined') window.TokenTool = TokenTool;
-if (typeof module !== 'undefined' && module.exports) module.exports = TokenTool;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.TokenTool = TokenTool;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = TokenTool;
 }

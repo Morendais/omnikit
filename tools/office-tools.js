@@ -460,10 +460,9 @@ const OfficeTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.OfficeTools = OfficeTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = OfficeTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.OfficeTools = OfficeTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = OfficeTools;
 }

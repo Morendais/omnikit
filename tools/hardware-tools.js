@@ -964,22 +964,38 @@ const HardwareTools = {
       if (thresholdVal) thresholdVal.textContent = `${this.mouse.clickThreshold} ms`;
     });
 
-    // 1. Mouse Button Down Handler
-    clickZone?.addEventListener('pointerdown', (e) => {
-      try { clickZone.setPointerCapture(e.pointerId); } catch (_) {}
-      this.handleMouseDown(e);
-    });
-    clickZone?.addEventListener('pointerup', (e) => {
-      try { clickZone.releasePointerCapture(e.pointerId); } catch (_) {}
-      this.handleMouseUp(e);
-    });
-    clickZone?.addEventListener('pointercancel', (e) => {
-      try { clickZone.releasePointerCapture(e.pointerId); } catch (_) {}
-      this.handleMouseUp(e);
-    });
-    clickZone?.addEventListener('contextmenu', (e) => {
+    // 1. Mouse Button Down Handler (Supports Chorded & Simultaneous Presses + Synthetic & Pointer Events)
+    let lastHandledDownTime = 0;
+    let lastHandledDownBtn = -1;
+    const onMouseDown = (e) => {
       e.preventDefault();
-      this.releaseMouseButton(2);
+      const now = performance.now();
+      if (e.button === lastHandledDownBtn && (now - lastHandledDownTime) < 10) {
+        return;
+      }
+      lastHandledDownBtn = e.button;
+      lastHandledDownTime = now;
+      this.handleMouseDown(e);
+    };
+
+    let lastHandledUpTime = 0;
+    let lastHandledUpBtn = -1;
+    const onMouseUp = (e) => {
+      const now = performance.now();
+      if (e.button === lastHandledUpBtn && (now - lastHandledUpTime) < 10) {
+        return;
+      }
+      lastHandledUpBtn = e.button;
+      lastHandledUpTime = now;
+      this.handleMouseUp(e);
+    };
+
+    clickZone?.addEventListener('pointerdown', onMouseDown);
+    clickZone?.addEventListener('mousedown', onMouseDown);
+    clickZone?.addEventListener('pointerup', onMouseUp);
+    clickZone?.addEventListener('mouseup', onMouseUp);
+    clickZone?.addEventListener('contextmenu', (e) => {
+      e.preventDefault(); // Prevent native right-click menu, but DO NOT release button 2 here!
     });
 
     // Global release listeners to prevent stuck/held button visual glitch
@@ -999,20 +1015,30 @@ const HardwareTools = {
         const mouseView = document.getElementById('tool-view-mouse-test');
         if (window.App?.activeTool === 'mouse-test' || (mouseView && !mouseView.classList.contains('hidden'))) {
           e.preventDefault();
-          this.releaseMouseButton(2);
         }
       });
 
-      // Synchronize with OS hardware button bitmask: if button is released at OS level, immediately un-stick it!
+      // Synchronize with OS hardware button bitmask: tracks simultaneous presses & releases
       const syncPhysicalButtons = (e) => {
         if (typeof e.buttons === 'number') {
+          const mouseView = document.getElementById('tool-view-mouse-test');
+          if (!mouseView || mouseView.classList.contains('hidden')) return;
+
           if (e.buttons === 0 && this.mouse.pressedButtons.size > 0) {
             this.clearAllPressedButtons();
             return;
           }
-          if ((e.buttons & 1) === 0 && this.mouse.pressedButtons.has(0)) this.releaseMouseButton(0);
-          if ((e.buttons & 2) === 0 && this.mouse.pressedButtons.has(2)) this.releaseMouseButton(2);
-          if ((e.buttons & 4) === 0 && this.mouse.pressedButtons.has(1)) this.releaseMouseButton(1);
+          // LMB (bit 1 -> button 0)
+          if ((e.buttons & 1) !== 0 && !this.mouse.pressedButtons.has(0)) this.pressMouseButton(0);
+          else if ((e.buttons & 1) === 0 && this.mouse.pressedButtons.has(0)) this.releaseMouseButton(0);
+
+          // RMB (bit 2 -> button 2)
+          if ((e.buttons & 2) !== 0 && !this.mouse.pressedButtons.has(2)) this.pressMouseButton(2);
+          else if ((e.buttons & 2) === 0 && this.mouse.pressedButtons.has(2)) this.releaseMouseButton(2);
+
+          // MMB (bit 4 -> button 1)
+          if ((e.buttons & 4) !== 0 && !this.mouse.pressedButtons.has(1)) this.pressMouseButton(1);
+          else if ((e.buttons & 4) === 0 && this.mouse.pressedButtons.has(1)) this.releaseMouseButton(1);
         }
       };
 
@@ -1105,6 +1131,17 @@ const HardwareTools = {
     if (valEl) valEl.textContent = '0.0';
     const countEl = document.getElementById('mouse-cps-clicks');
     if (countEl) countEl.textContent = '0';
+  },
+
+  pressMouseButton(btn) {
+    if (typeof btn !== 'number') return;
+    this.mouse.pressedButtons.add(btn);
+    this.highlightMouseButton(btn, true);
+    if (!this.mouse._btnTimeouts) this.mouse._btnTimeouts = {};
+    if (this.mouse._btnTimeouts[btn]) clearTimeout(this.mouse._btnTimeouts[btn]);
+    this.mouse._btnTimeouts[btn] = setTimeout(() => {
+      this.releaseMouseButton(btn);
+    }, 500);
   },
 
   releaseMouseButton(btn) {
@@ -1213,8 +1250,25 @@ const HardwareTools = {
 
     this.mouse.wheelTotalScrolls++;
 
-    if (this.mouse.lastWheelDirection !== 0 && this.mouse.lastWheelDirection !== direction) {
-      if (now - this.mouse.lastWheelTime < 140) {
+    if (!this.mouse.wheelHistory) {
+      this.mouse.wheelHistory = [];
+    }
+    this.mouse.wheelHistory.push({ dir: direction, time: now });
+    if (this.mouse.wheelHistory.length > 8) {
+      this.mouse.wheelHistory.shift();
+    }
+
+    // Smart Encoder Anomaly (Contact Bounce/Jitter) Detection:
+    // A genuine hardware anomaly occurs when an encoder scrolling in one dominant direction
+    // fires an isolated reverse tick (e.g. [1, 1, -1, 1] or [-1, -1, 1, -1]) in rapid succession (< 160ms).
+    // An intentional direction change by user (e.g. [1, 1, -1, -1, -1]) is normal and NOT an anomaly.
+    const h = this.mouse.wheelHistory;
+    if (h.length >= 3) {
+      const last = h[h.length - 1];
+      const prev = h[h.length - 2];
+      const prevPrev = h[h.length - 3];
+
+      if (prev.dir !== prevPrev.dir && prev.dir !== last.dir && (last.time - prevPrev.time < 160)) {
         this.mouse.wheelAnomaliesCount++;
         const anomEl = document.getElementById('mouse-wheel-anomalies');
         if (anomEl) {
@@ -1230,7 +1284,8 @@ const HardwareTools = {
     const dirEl = document.getElementById('mouse-wheel-dir');
     const totalEl = document.getElementById('mouse-wheel-total');
 
-    if (dirEl) dirEl.textContent = isUp ? '↑ Вверх (Up)' : '↓ Вниз (Down)';
+    const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+    if (dirEl) dirEl.textContent = isUp ? (isRu ? '↑ Вверх' : '↑ Up') : (isRu ? '↓ Вниз' : '↓ Down');
     if (totalEl) totalEl.textContent = this.mouse.wheelTotalScrolls;
 
     // Visual Wheel Flash & Direction Chevrons
@@ -1249,6 +1304,15 @@ const HardwareTools = {
       cylinder.classList.remove('wheel-scrolling-up', 'wheel-scrolling-down');
       void cylinder.offsetWidth; // trigger reflow
       cylinder.classList.add(isUp ? 'wheel-scrolling-up' : 'wheel-scrolling-down');
+    }
+
+    if (upIndicator) {
+      const span = upIndicator.querySelector('span');
+      if (span) span.textContent = isRu ? 'ВВЕРХ' : 'UP';
+    }
+    if (downIndicator) {
+      const span = downIndicator.querySelector('span');
+      if (span) span.textContent = isRu ? 'ВНИЗ' : 'DOWN';
     }
 
     if (isUp && upIndicator) {
@@ -1399,6 +1463,7 @@ const HardwareTools = {
     this.mouse.doubleClicksCount = 0;
     this.mouse.wheelTotalScrolls = 0;
     this.mouse.wheelAnomaliesCount = 0;
+    this.mouse.wheelHistory = [];
     this.mouse.lastDownTime = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
 
     this.updateMouseCounts();
@@ -1428,10 +1493,9 @@ const HardwareTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.HardwareTools = HardwareTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = HardwareTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.HardwareTools = HardwareTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = HardwareTools;
 }

@@ -397,10 +397,9 @@ const OcrTool = {
   }
 };
 
-if (typeof window !== 'undefined') window.OcrTool = OcrTool;
-if (typeof module !== 'undefined' && module.exports) module.exports = OcrTool;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.OcrTool = OcrTool;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = OcrTool;
 }

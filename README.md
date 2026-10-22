@@ -57,6 +57,7 @@ Files and inputs never leave the client environment.
 | QR Code Studio | tools/qr-tool.js | QR code generation for text, URL, Wi-Fi configuration, vCard, and cryptocurrency addresses. |
 | Audio Utilities | tools/audio-tools.js | Audio playback rate and tempo manipulation via Web Audio API. |
 | OCR Text Recognition | tools/ocr-tool.js | Client-side optical character recognition pipeline. |
+| P2P AirDrop | tools/p2p-drop.js | Local WebRTC DataChannel peer-to-peer file transfer between devices with QR pairing. |
 
 ### Attributions, Credits & Upstream Open-Source Engines
 

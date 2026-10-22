@@ -25,7 +25,12 @@ const MediaCreative = {
     });
   },
 
-    escapeHtml(str) {
+  t(ru, en) {
+    const lang = (window.I18N && window.I18N.currentLang) || (window.I18n && window.I18n.currentLang) || 'ru';
+    return lang === 'en' ? en : ru;
+  },
+
+  escapeHtml(str) {
     if (!str && str !== 0) return '';
     return String(str)
       .replace(/&/g, '&amp;')
@@ -33,11 +38,6 @@ const MediaCreative = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  },
-
-  t(ru, en) {
-    const lang = (window.I18N && window.I18N.currentLang) || (window.I18n && window.I18n.currentLang) || 'ru';
-    return lang === 'en' ? en : ru;
   },
 
   // Color helper: HSL to Hex
@@ -1036,10 +1036,9 @@ const MediaCreative = {
   }
 };
 
-if (typeof window !== 'undefined') window.MediaCreative = MediaCreative;
-if (typeof module !== 'undefined' && module.exports) module.exports = MediaCreative;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.MediaCreative = MediaCreative;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = MediaCreative;
 }

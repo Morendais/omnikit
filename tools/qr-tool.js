@@ -218,10 +218,9 @@ const QrTool = {
   }
 };
 
-if (typeof window !== 'undefined') window.QrTool = QrTool;
-if (typeof module !== 'undefined' && module.exports) module.exports = QrTool;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.QrTool = QrTool;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = QrTool;
 }

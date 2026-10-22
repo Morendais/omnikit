@@ -13,7 +13,7 @@ const PdfSuite = {
   pdfImages: [],
   mergeFiles: [],
 
-    escapeHtml(str) {
+  escapeHtml(str) {
     if (!str && str !== 0) return '';
     return String(str)
       .replace(/&/g, '&amp;')
@@ -49,7 +49,7 @@ const PdfSuite = {
         : 'pdf-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition shrink-0';
     });
 
-    ['img2pdf', 'pdf2img', 'merge', 'split'].forEach(t => {
+    ['img2pdf', 'pdf2img', 'merge', 'split', 'protect'].forEach(t => {
       const el = document.getElementById(`pdf-pane-${t}`);
       if (el) el.classList.toggle('hidden', t !== tab);
     });
@@ -292,7 +292,11 @@ const PdfSuite = {
         a.href = url;
         a.download = 'omnikit-pdf-pages.zip';
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+        if (window.App && window.App.showToast) {
+          window.App.showToast(isRu ? 'ZIP-архив страниц сформирован!' : 'ZIP archive generated!');
+        }
       } catch (err) {
         alert('Ошибка создания ZIP: ' + err.message);
       } finally {
@@ -392,7 +396,15 @@ const PdfSuite = {
         a.href = url;
         a.download = 'merged-document.pdf';
         a.click();
-        URL.revokeObjectURL(url);
+        // Safe timeout for Safari and Firefox download completion
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+        const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+        if (window.App && window.App.showToast) {
+          window.App.showToast(isRu ? 'PDF успешно склеен и скачивается!' : 'PDF merged and downloaded successfully!');
+        } else if (window.TextTools && window.TextTools.showToast) {
+          window.TextTools.showToast(isRu ? 'PDF успешно склеен и скачивается!' : 'PDF merged and downloaded successfully!');
+        }
       } catch (err) {
         alert('Ошибка объединения PDF: ' + err.message);
       } finally {
@@ -496,7 +508,11 @@ const PdfSuite = {
         a.href = url;
         a.download = `split-${splitFile.name}`;
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+        if (window.App && window.App.showToast) {
+          window.App.showToast(isRu ? 'Разделённый PDF скачивается!' : 'Split PDF downloading!');
+        }
       } catch (err) {
         alert('Ошибка разделения PDF: ' + err.message);
       } finally {
@@ -507,10 +523,9 @@ const PdfSuite = {
   }
 };
 
-if (typeof window !== 'undefined') window.PdfSuite = PdfSuite;
-if (typeof module !== 'undefined' && module.exports) module.exports = PdfSuite;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.PdfSuite = PdfSuite;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = PdfSuite;
 }

@@ -353,10 +353,9 @@ const DevTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.DevTools = DevTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = DevTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.DevTools = DevTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = DevTools;
 }

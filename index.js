@@ -6,6 +6,23 @@
  * License: MIT
  */
 
+// Node.js environment polyfill for browser globals
+if (typeof window === 'undefined') {
+  const doc = {
+    createElement: () => ({ getContext: () => ({}) }),
+    getElementById: () => null,
+    querySelectorAll: () => []
+  };
+  global.window = {
+    I18N: { currentLang: 'en' },
+    document: doc,
+    navigator: { userAgent: 'node' },
+    location: { href: 'http://localhost' },
+    crypto: require('crypto').webcrypto
+  };
+  global.document = doc;
+}
+
 const AudioTools = require('./tools/audio-tools.js');
 const BatchImageStudio = require('./tools/batch-image.js');
 const BgRemover = require('./tools/bg-remover.js');
@@ -17,6 +34,7 @@ const MediaCreative = require('./tools/media-creative.js');
 const MediaExtended = require('./tools/media-extended.js');
 const OcrTool = require('./tools/ocr-tool.js');
 const OfficeTools = require('./tools/office-tools.js');
+const P2PDrop = require('./tools/p2p-drop.js');
 const PdfSuite = require('./tools/pdf-suite.js');
 const QrTool = require('./tools/qr-tool.js');
 const TextTools = require('./tools/text-tools.js');
@@ -36,6 +54,7 @@ module.exports = {
   MediaExtended,
   OcrTool,
   OfficeTools,
+  P2PDrop,
   PdfSuite,
   QrTool,
   TextTools,

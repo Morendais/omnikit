@@ -43,11 +43,11 @@ const TextTools = {
     const readingTime = Math.ceil(words / 180); // ~180 words per minute average
 
     const setEl = (id, val) => {
-      const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
+      const el = document.getElementById(id);
       if (el) el.textContent = val;
     };
 
-    const isRu = (typeof window !== 'undefined' && window.I18N?.currentLang || 'ru') === 'ru';
+    const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
     setEl('stat-chars', totalChars);
     setEl('stat-no-spaces', noSpaces);
     setEl('stat-words', words);
@@ -55,12 +55,10 @@ const TextTools = {
     setEl('stat-reading', `${readingTime} ${isRu ? 'мин' : 'min'}`);
 
     // Social Limits
-    if (typeof document !== 'undefined') {
-      this.updateLimit('tg-caption', totalChars, 1024);
-      this.updateLimit('tg-post', totalChars, 4096);
-      this.updateLimit('twitter', totalChars, 280);
-      this.updateLimit('instagram', totalChars, 2200);
-    }
+    this.updateLimit('tg-caption', totalChars, 1024);
+    this.updateLimit('tg-post', totalChars, 4096);
+    this.updateLimit('twitter', totalChars, 280);
+    this.updateLimit('instagram', totalChars, 2200);
 
     return { totalChars, noSpaces, words, paragraphs, readingTime };
   },
@@ -257,10 +255,9 @@ const TextTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.TextTools = TextTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = TextTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.TextTools = TextTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = TextTools;
 }

@@ -544,10 +544,9 @@ const AudioTools = {
   }
 };
 
-if (typeof window !== 'undefined') window.AudioTools = AudioTools;
-if (typeof module !== 'undefined' && module.exports) module.exports = AudioTools;
-
-
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof window !== "undefined") {
+  window.AudioTools = AudioTools;
+}
+if (typeof module !== "undefined" && module.exports) {
   module.exports = AudioTools;
 }
