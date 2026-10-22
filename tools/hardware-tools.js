@@ -1186,23 +1186,32 @@ const HardwareTools = {
     const alertBox = document.getElementById('mouse-doubleclick-alert');
     if (!alertBox) return;
 
-    alertBox.innerHTML = `
-      <div class="flex items-center gap-3">
-        <i data-lucide="alert-triangle" class="w-6 h-6 text-rose-500 shrink-0"></i>
-        <div>
-          <p class="font-bold text-rose-600 dark:text-rose-400 text-sm">
-            ${this.t('mouse_alert_title', 'Обнаружен аппаратный дабл-клик!', 'Hardware Double-Click Detected!')}
-          </p>
-          <p class="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
-            ${btnName} — ${this.t('mouse_alert_interval', 'интервал между кликами', 'click interval')}: <span class="font-mono font-bold text-rose-600 dark:text-rose-400">${delta} мс</span> (${this.t('mouse_alert_reason', 'порог дребезга', 'chatter threshold')} ${this.mouse.clickThreshold} мс).
-          </p>
-        </div>
-      </div>
-    `;
+    alertBox.textContent = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex items-center gap-3';
+
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', 'alert-triangle');
+    icon.className = 'w-6 h-6 text-rose-500 shrink-0';
+
+    const textDiv = document.createElement('div');
+    const titleP = document.createElement('p');
+    titleP.className = 'font-bold text-rose-600 dark:text-rose-400 text-sm';
+    titleP.textContent = this.t('mouse_alert_title', 'Обнаружен аппаратный дабл-клик!', 'Hardware Double-Click Detected!');
+
+    const descP = document.createElement('p');
+    descP.className = 'text-xs text-neutral-600 dark:text-neutral-400 mt-0.5';
+    descP.textContent = `${btnName} — ${this.t('mouse_alert_interval', 'интервал между кликами', 'click interval')}: ${delta} ms (${this.t('mouse_alert_reason', 'порог дребезга', 'chatter threshold')} ${this.mouse.clickThreshold} ms).`;
+
+    textDiv.appendChild(titleP);
+    textDiv.appendChild(descP);
+    wrapper.appendChild(icon);
+    wrapper.appendChild(textDiv);
+    alertBox.appendChild(wrapper);
+
     alertBox.classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 
-    // Pulse animation
     alertBox.classList.remove('animate-pulse');
     void alertBox.offsetWidth;
     alertBox.classList.add('animate-pulse');
@@ -1219,17 +1228,28 @@ const HardwareTools = {
         : 'bg-white border-neutral-200 text-neutral-700 dark:bg-[#14161a] dark:border-neutral-800 dark:text-neutral-300'
     }`;
 
-    item.innerHTML = `
-      <span>${btnName}</span>
-      <span class="flex items-center gap-1.5">
-        ${isFaulty ? '<span class="text-[10px] px-1 rounded bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 uppercase">Double-Click</span>' : ''}
-        <span>${delta > 5000 ? '>5s' : delta + ' ms'}</span>
-      </span>
-    `;
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = btnName;
+
+    const rightSpan = document.createElement('span');
+    rightSpan.className = 'flex items-center gap-1.5';
+
+    if (isFaulty) {
+      const tag = document.createElement('span');
+      tag.className = 'text-[10px] px-1 rounded bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 uppercase';
+      tag.textContent = 'Double-Click';
+      rightSpan.appendChild(tag);
+    }
+
+    const deltaSpan = document.createElement('span');
+    deltaSpan.textContent = delta > 5000 ? '>5s' : `${delta} ms`;
+    rightSpan.appendChild(deltaSpan);
+
+    item.appendChild(nameSpan);
+    item.appendChild(rightSpan);
 
     historyList.prepend(item);
 
-    // Keep only last 12 entries
     while (historyList.children.length > 12) {
       historyList.removeChild(historyList.lastChild);
     }

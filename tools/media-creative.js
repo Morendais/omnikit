@@ -983,56 +983,59 @@ const MediaCreative = {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(svgStr, 'image/svg+xml');
-      if (doc.querySelector('parsererror')) {
-        throw new Error('SVG XML Parse Error');
+      const parserError = doc.querySelector('parsererror');
+      if (parserError) {
+        const htmlDoc = parser.parseFromString(svgStr, 'text/html');
+        const svgEl = htmlDoc.querySelector('svg');
+        if (!svgEl) return '';
+        return this._cleanSvgElement(svgEl);
       }
-
       const svgEl = doc.querySelector('svg');
       if (!svgEl) return '';
-
-      // 1. Remove dangerous script and embedding tags
-      const dangerousTags = ['script', 'foreignobject', 'object', 'embed', 'iframe', 'meta', 'link'];
-      dangerousTags.forEach(tag => {
-        doc.querySelectorAll(tag).forEach(el => el.remove());
-      });
-
-      // 2. Remove inline event handlers (on*) and javascript: links
-      doc.querySelectorAll('*').forEach(el => {
-        Array.from(el.attributes).forEach(attr => {
-          const name = attr.name.toLowerCase();
-          const val = attr.value.trim().toLowerCase();
-          if (name.startsWith('on')) {
-            el.removeAttribute(attr.name);
-          } else if (['href', 'xlink:href', 'src'].includes(name) || name.endsWith(':href')) {
-            if (val.startsWith('javascript:') || val.startsWith('vbscript:') || val.startsWith('data:text/html')) {
-              el.removeAttribute(attr.name);
-            }
-          }
-        });
-      });
-
-      const serializer = new XMLSerializer();
-      return serializer.serializeToString(svgEl);
-    } catch (e) {
-      // Robust regex fallback if DOMParser fails
-      return svgStr
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
-        .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-        .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, '')
-        .replace(/xlink:href\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
+      return this._cleanSvgElement(svgEl);
+    } catch {
+      return '';
     }
+  },
+
+  _cleanSvgElement(svgEl) {
+    const dangerousTags = ['script', 'foreignobject', 'object', 'embed', 'iframe', 'meta', 'link', 'style'];
+    dangerousTags.forEach(tag => {
+      svgEl.querySelectorAll(tag).forEach(el => el.remove());
+    });
+
+    const isSafeUrl = (url) => {
+      const trimmed = String(url).replace(/[\x00-\x20\s]/g, '').toLowerCase();
+      if (trimmed.startsWith('#') || trimmed.startsWith('/') || trimmed.startsWith('data:image/')) return true;
+      try {
+        const parsed = new URL(trimmed, 'https://example.com');
+        return ['http:', 'https:', 'blob:'].includes(parsed.protocol);
+      } catch {
+        return false;
+      }
+    };
+
+    svgEl.querySelectorAll('*').forEach(el => {
+      Array.from(el.attributes).forEach(attr => {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on')) {
+          el.removeAttribute(attr.name);
+        } else if (['href', 'xlink:href', 'src'].includes(name) || name.endsWith(':href')) {
+          if (!isSafeUrl(attr.value)) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+    });
+
+    const serializer = new XMLSerializer();
+    return serializer.serializeToString(svgEl);
   },
 
   optimizeSvg(svgStr) {
     const clean = this.sanitizeSvg(svgStr);
-    return clean
-      .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/<!DOCTYPE[\s\S]*?>/gi, '')
-      .replace(/<\?xml[\s\S]*?\?>/gi, '')
-      .replace(/xmlns:xlink="[^"]*"/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    if (!clean) return '';
+    return clean.replace(/\s+/g, ' ').trim();
   }
 };
 

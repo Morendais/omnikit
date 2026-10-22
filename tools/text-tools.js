@@ -28,7 +28,7 @@ const TextTools = {
     });
 
     document.getElementById('text-copy-btn')?.addEventListener('click', () => {
-      const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+      const isRu = typeof window !== 'undefined' && window.I18N?.currentLang === 'en' ? false : true;
       navigator.clipboard.writeText(textarea.value).then(() => {
         this.showToast(isRu ? 'Текст скопирован в буфер обмена!' : 'Text copied to clipboard!');
       });
@@ -43,11 +43,12 @@ const TextTools = {
     const readingTime = Math.ceil(words / 180); // ~180 words per minute average
 
     const setEl = (id, val) => {
+      if (typeof document === "undefined") return;
       const el = document.getElementById(id);
       if (el) el.textContent = val;
     };
 
-    const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+    const isRu = typeof window !== 'undefined' && window.I18N?.currentLang === 'en' ? false : true;
     setEl('stat-chars', totalChars);
     setEl('stat-no-spaces', noSpaces);
     setEl('stat-words', words);
@@ -64,6 +65,7 @@ const TextTools = {
   },
 
   updateLimit(id, current, max) {
+    if (typeof document === "undefined") return;
     const percent = Math.min(Math.round((current / max) * 100), 100);
     const bar = document.getElementById(`limit-bar-${id}`);
     const badge = document.getElementById(`limit-badge-${id}`);
@@ -126,7 +128,12 @@ const TextTools = {
     });
 
     document.getElementById('btn-clean-html')?.addEventListener('click', () => {
-      textarea.value = textarea.value.replace(/<[^>]*>?/gm, '');
+      if (typeof DOMParser !== 'undefined') {
+        const doc = new DOMParser().parseFromString(textarea.value, 'text/html');
+        textarea.value = (doc.body.textContent || '').trim();
+      } else {
+        textarea.value = textarea.value.replace(/<[^>]+>/g, '').trim();
+      }
       this.updateStats(textarea.value);
     });
   },
@@ -136,7 +143,7 @@ const TextTools = {
     if (!textarea) return;
 
     const wrapSelected = (prefix, suffix) => {
-      const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+      const isRu = typeof window !== 'undefined' && window.I18N?.currentLang === 'en' ? false : true;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const selected = textarea.value.substring(start, end) || (isRu ? 'текст' : 'text');
@@ -204,7 +211,7 @@ const TextTools = {
     document.getElementById('btn-case-copy')?.addEventListener('click', () => {
       if (!output.value) return;
       navigator.clipboard.writeText(output.value).then(() => {
-        const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+        const isRu = typeof window !== 'undefined' && window.I18N?.currentLang === 'en' ? false : true;
         this.showToast(isRu ? 'Результат скопирован!' : 'Converted text copied!');
       });
     });

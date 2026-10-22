@@ -599,10 +599,20 @@ const BatchImageStudio = {
     }
 
     if (actionCell && item.outputBlob) {
-      actionCell.innerHTML = `<button type="button" class="batch-dl-single p-1 text-neutral-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition" data-id="${item.id}" title="${isRu ? 'Скачать файл' : 'Download file'}"><i data-lucide="download" class="w-4 h-4"></i></button>`;
-      actionCell.querySelector('.batch-dl-single')?.addEventListener('click', () => {
+      actionCell.textContent = '';
+      const dlBtn = document.createElement('button');
+      dlBtn.type = 'button';
+      dlBtn.className = 'batch-dl-single p-1 text-neutral-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition';
+      dlBtn.setAttribute('data-id', item.id);
+      dlBtn.title = isRu ? 'Скачать файл' : 'Download file';
+      const dlIcon = document.createElement('i');
+      dlIcon.setAttribute('data-lucide', 'download');
+      dlIcon.className = 'w-4 h-4';
+      dlBtn.appendChild(dlIcon);
+      dlBtn.addEventListener('click', () => {
         this.downloadSingle(item.id);
       });
+      actionCell.appendChild(dlBtn);
     }
 
     if (window.lucide) lucide.createIcons();

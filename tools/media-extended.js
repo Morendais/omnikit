@@ -330,25 +330,19 @@ const MediaExtended = {
         return;
       }
 
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>OmniKit</title>
-          <style>
-            @page { size: ${pageSize.toUpperCase()}; margin: 10mm; }
-            body { margin: 0; padding: 0; background: #fff; }
-            .page { page-break-after: always; display: flex; align-items: center; justify-content: center; height: 100vh; }
-            img { max-width: 100%; max-height: 100%; object-fit: contain; }
-          </style>
-        </head>
-        <body>
-          <div id="content"></div>
-        </body>
-        </html>
-      `);
+      printWindow.document.title = 'OmniKit PDF Export';
+      const style = printWindow.document.createElement('style');
+      style.textContent = `
+        @page { size: ${pageSize.toUpperCase()}; margin: 10mm; }
+        body { margin: 0; padding: 0; background: #fff; }
+        .page { page-break-after: always; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      `;
+      printWindow.document.head.appendChild(style);
 
-      const contentDiv = printWindow.document.getElementById('content');
+      const contentDiv = printWindow.document.createElement('div');
+      contentDiv.id = 'content';
+      printWindow.document.body.appendChild(contentDiv);
       for (const file of loadedFiles) {
         const pageDiv = printWindow.document.createElement('div');
         pageDiv.className = 'page';
@@ -386,42 +380,85 @@ const MediaExtended = {
       const safeBase = rawBase.replace(/[^\wа-яА-ЯёЁ.-]/g, '_');
 
       // Modern rounded-2xl progress card matching site aesthetics
-      statusBox.innerHTML = `
-        <div class="p-6 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 text-center flex flex-col items-center justify-center space-y-3 shadow-sm animate-fade-in">
-          <div class="w-10 h-10 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
-          <div>
-            <h4 class="font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100">
-              ${isRu ? (isImageToHeic ? 'Конвертация в HEIC...' : 'Конвертация HEIC в JPG...') : (isImageToHeic ? 'Converting to HEIC...' : 'Converting HEIC to JPG...')}
-            </h4>
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono">
-              ${file.name} (${(file.size / 1024).toFixed(1)} KB)
-            </p>
-          </div>
-        </div>
-      `;
+      statusBox.textContent = '';
+      const card = document.createElement('div');
+      card.className = 'p-6 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 text-center flex flex-col items-center justify-center space-y-3 shadow-sm animate-fade-in';
+      
+      const spinner = document.createElement('div');
+      spinner.className = 'w-10 h-10 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin';
+      
+      const textContainer = document.createElement('div');
+      const titleH4 = document.createElement('h4');
+      titleH4.className = 'font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100';
+      titleH4.textContent = isRu 
+        ? (isImageToHeic ? 'Конвертация в HEIC...' : 'Конвертация HEIC в JPG...') 
+        : (isImageToHeic ? 'Converting to HEIC...' : 'Converting HEIC to JPG...');
+      
+      const fileP = document.createElement('p');
+      fileP.className = 'text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono';
+      fileP.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      
+      textContainer.appendChild(titleH4);
+      textContainer.appendChild(fileP);
+      card.appendChild(spinner);
+      card.appendChild(textContainer);
+      statusBox.appendChild(card);
 
       const showSuccessResult = (blob, outExt, outMime) => {
         const url = URL.createObjectURL(blob);
-        statusBox.innerHTML = `
-          <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-sm animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5 min-w-0">
-              <img src="${url}" alt="Preview" class="w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800">
-              <div class="min-w-0 text-left">
-                <div class="flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-                  <h4 class="font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 truncate">${safeBase}.${outExt}</h4>
-                </div>
-                <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                  ${isRu ? 'Исходный' : 'Original'}: ${(file.size / 1024).toFixed(1)} KB • ${isRu ? 'Готово' : 'Output'}: ${(blob.size / 1024).toFixed(1)} KB
-                </p>
-              </div>
-            </div>
-            <a href="${url}" download="${safeBase}.${outExt}" class="btn-primary text-xs py-2.5 px-5 rounded-xl inline-flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center">
-              <i data-lucide="download" class="w-4 h-4"></i>
-              <span>${isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`}</span>
-            </a>
-          </div>
-        `;
+        statusBox.textContent = '';
+        
+        const resCard = document.createElement('div');
+        resCard.className = 'p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-sm animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4';
+        
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'flex items-center gap-3.5 min-w-0';
+        
+        const previewImg = document.createElement('img');
+        previewImg.src = url;
+        previewImg.alt = 'Preview';
+        previewImg.className = 'w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800';
+        
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'min-w-0 text-left';
+        
+        const titleRow = document.createElement('div');
+        titleRow.className = 'flex items-center gap-2';
+        const dot = document.createElement('span');
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0';
+        const titleText = document.createElement('h4');
+        titleText.className = 'font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 truncate';
+        titleText.textContent = `${safeBase}.${outExt}`;
+        titleRow.appendChild(dot);
+        titleRow.appendChild(titleText);
+        
+        const infoP = document.createElement('p');
+        infoP.className = 'text-xs text-neutral-500 dark:text-neutral-400 mt-1';
+        infoP.textContent = `${isRu ? 'Исходный' : 'Original'}: ${(file.size / 1024).toFixed(1)} KB • ${isRu ? 'Готово' : 'Output'}: ${(blob.size / 1024).toFixed(1)} KB`;
+        
+        metaDiv.appendChild(titleRow);
+        metaDiv.appendChild(infoP);
+        leftDiv.appendChild(previewImg);
+        leftDiv.appendChild(metaDiv);
+        
+        const dlLink = document.createElement('a');
+        dlLink.href = url;
+        dlLink.download = `${safeBase}.${outExt}`;
+        dlLink.className = 'btn-primary text-xs py-2.5 px-5 rounded-xl inline-flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center';
+        
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'download');
+        icon.className = 'w-4 h-4';
+        const spanText = document.createElement('span');
+        spanText.textContent = isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`;
+        
+        dlLink.appendChild(icon);
+        dlLink.appendChild(spanText);
+        
+        resCard.appendChild(leftDiv);
+        resCard.appendChild(dlLink);
+        statusBox.appendChild(resCard);
+        
         if (window.lucide) lucide.createIcons();
       };
 

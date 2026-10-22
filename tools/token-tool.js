@@ -7,7 +7,7 @@
 
 const TokenTool = {
   // Official cl100k_base tokenizer regex pattern
-  tokenizerRegex: /'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+/gu,
+  tokenizerRegex: /'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+/gu,
 
   // Cutting-Edge 2026 Flagship models (available instantly offline)
     // Comprehensive 100% In-Browser Flagship AI Models (Zero external requests)
