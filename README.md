@@ -3,6 +3,10 @@
 A collection of 34 high-performance client-side browser utilities, converters, and hardware diagnostics.
 100% in-browser processing. Zero server compute. Zero data leakage.
 
+Production Website: [https://omnikit.tech](https://omnikit.tech)  
+Repository: [https://github.com/Morendais/omnikit](https://github.com/Morendais/omnikit)  
+License: MIT  
+
 [English](#english) | [Russian](#russian)
 
 ---
@@ -10,9 +14,19 @@ A collection of 34 high-performance client-side browser utilities, converters, a
 <a name="english"></a>
 ## English
 
+### Open Source Proof of Privacy
+
+This GitHub repository exists to provide verifiable, open-source proof of privacy for users of [omnikit.tech](https://omnikit.tech).
+
+All tool logic hosted on omnikit.tech is published here in plain, unminified JavaScript. Anyone can independently inspect, audit, and verify that:
+1. No Data Uploads: Files, audio buffers, webcam frames, and text inputs are never uploaded to any remote server or third-party cloud.
+2. 100% Client-Side Execution: All computation runs entirely inside the user's browser using native Web APIs (Web Audio, Web Crypto, HTML5 Canvas, Web Workers, MediaDevices).
+3. Zero Keystroke Logging: Inputs in sensitive tools (Password Generator, JWT Decoder, Diff Checker) are never recorded.
+4. Verifiable via DevTools: Open the Network tab in your browser developer tools (F12) while performing any conversion or diagnostic test. Exactly 0 bytes of user data are transmitted.
+
 ### Overview
 
-OmniKit Tools is an open-source library of standalone client-side JavaScript modules designed for secure, in-browser data processing. Every operation executes entirely on the user's device via native browser APIs (HTML5 Canvas, Web Audio API, Web Crypto API, MediaDevices, and Web Workers).
+OmniKit Tools is an open-source library of standalone client-side JavaScript modules designed for secure, in-browser data processing. Every operation executes entirely on the user's device.
 
 Files and inputs never leave the client environment.
 
@@ -83,9 +97,19 @@ console.log(OfficeTools.spellEnglishNumber(125));
 <a name="russian"></a>
 ## Russian
 
+### Открытое доказательство приватности
+
+Этот репозиторий на GitHub создан для независимого подтверждения безопасности и приватности сервиса [omnikit.tech](https://omnikit.tech).
+
+Весь код инструментов, работающих на сайте, открыт для публичного аудита:
+1. Ноль загрузок на сервер: Ваши файлы, снимки с веб-камеры, аудиопоток с микрофона и вводимый текст никогда не покидают устройство.
+2. 100% клиентская обработка: Все вычисления производятся в оперативной памяти браузера с помощью стандартных Web API (Web Audio, Web Crypto, HTML5 Canvas, Web Workers, MediaDevices).
+3. Защита ввода: Данные в чувствительных инструментах (генератор паролей, JWT-декодер, Diff-чекер) никогда не сохраняются и не логируются.
+4. Проверяемо через DevTools: Откройте вкладку Network (F12) в браузере при работе с любым инструментом на сайте - исходящий трафик с вашими данными равен 0 байт.
+
 ### Описание
 
-OmniKit Tools - библиотека независимых JavaScript-модулей для обработки данных и диагностики оборудования непосредственно в браузере пользователя. Все вычисления выполняются локально с использованием стандартных Web API (HTML5 Canvas, Web Audio API, Web Crypto API, MediaDevices, Web Workers).
+OmniKit Tools - библиотека независимых JavaScript-модулей для обработки данных и диагностики оборудования непосредственно в браузере пользователя. Все вычисления выполняются локально.
 
 Данные и файлы пользователя никогда не отправляются на удаленные серверы.
 
