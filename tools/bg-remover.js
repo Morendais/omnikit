@@ -178,11 +178,11 @@ const BgRemover = {
     // Check IndexedDB cache
     const cached = await this.getCachedModel(this.MODEL.id);
     if (cached) {
-      if (onProgress) onProgress(40, isRu ? 'Загрузка AI модели из локального кэша...' : 'Loading AI model from local cache...');
+      if (onProgress) onProgress(40, isRu ? 'AI нейросеть загружена из локального кэша (офлайн)...' : 'AI model loaded from local browser cache (offline)...');
       return cached;
     }
 
-    if (onProgress) onProgress(10, isRu ? `Загрузка AI модели (${this.MODEL.sizeMB} МБ)...` : `Downloading AI model (${this.MODEL.sizeMB} MB)...`);
+    if (onProgress) onProgress(10, isRu ? 'Первый запуск: загрузка AI модели (42 МБ), далее сохранится в кэше...' : 'First run: downloading AI model (42 MB), will be cached for offline use...');
 
     const resp = await fetch(this.MODEL.url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status} loading model`);
@@ -204,7 +204,7 @@ const BgRemover = {
       if (onProgress) {
         onProgress(
           Math.max(10, Math.round(pct * 0.5)),
-          isRu ? `Загрузка AI модели (${mbReceived} / ${mbTotal} МБ)...` : `Downloading AI model (${mbReceived} / ${mbTotal} MB)...`
+          isRu ? `Первый запуск: скачивание модели (${mbReceived} / ${mbTotal} МБ, сохранение в кэш)...` : `First run: downloading model (${mbReceived} / ${mbTotal} MB, caching locally)...`
         );
       }
     }

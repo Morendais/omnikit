@@ -67,7 +67,7 @@ const DevTools = {
     if (cryptoObj && cryptoObj.getRandomValues) {
       cryptoObj.getRandomValues(array);
     } else {
-      for (let i = 0; i < len; i++) array[i] = Math.floor(Math.random() * 100000);
+      throw new Error('Secure random unavailable');
     }
     let password = '';
     for (let i = 0; i < len; i++) {

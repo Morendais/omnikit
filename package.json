@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "Zero-knowledge, 100% in-browser client-side web tools and utilities",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "tools",
+    "README.md",
+    "LICENSE",
+    "assets/images"
+  ],
   "scripts": {
     "test": "node test.js"
   },
