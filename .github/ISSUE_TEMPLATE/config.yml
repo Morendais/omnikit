@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OmniKit Web App
+    url: https://omnikit.tech
+    about: Access all 34+ free, privacy-first tools directly in your browser.
+  - name: Security Vulnerability Disclosure
+    url: https://github.com/Morendais/omnikit/security/advisories/new
+    about: Report sensitive security vulnerabilities privately.

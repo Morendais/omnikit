@@ -1,4 +1,7 @@
 node_modules/
 *.log
+*.tar.gz
+deploy_omnikit.tar.gz
+screenshots/
 .DS_Store
 Thumbs.db
