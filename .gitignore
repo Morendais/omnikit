@@ -3,5 +3,7 @@ node_modules/
 *.tar.gz
 deploy_omnikit.tar.gz
 screenshots/
+nginx.conf
+*.conf
 .DS_Store
 Thumbs.db
