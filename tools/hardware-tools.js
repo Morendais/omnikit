@@ -1072,6 +1072,21 @@ const HardwareTools = {
     }
 
     this.updateMouseCounts();
+    if (this.mouse.cpsTimer) {
+      clearInterval(this.mouse.cpsTimer);
+      this.mouse.cpsTimer = null;
+    }
+    this.mouse.cpsActive = false;
+    const cpsBtn = document.getElementById('mouse-cps-btn');
+    if (cpsBtn) {
+      cpsBtn.textContent = this.t('mouse_cps_btn_text', 'Кликайте здесь как можно быстрее!', 'Click here as fast as you can!');
+    }
+    const timerEl = document.getElementById('mouse-cps-timer');
+    if (timerEl) timerEl.textContent = '5.0s';
+    const valEl = document.getElementById('mouse-cps-val');
+    if (valEl) valEl.textContent = '0.0';
+    const countEl = document.getElementById('mouse-cps-clicks');
+    if (countEl) countEl.textContent = '0';
   },
 
   releaseMouseButton(btn) {
@@ -1206,18 +1221,35 @@ const HardwareTools = {
   },
 
   handleCpsClick() {
+    const cpsBtn = document.getElementById('mouse-cps-btn');
+    const timerEl = document.getElementById('mouse-cps-timer');
+    const valEl = document.getElementById('mouse-cps-val');
+    const countEl = document.getElementById('mouse-cps-clicks');
+
     if (!this.mouse.cpsActive) {
       // Start 5-second CPS Test
       this.mouse.cpsActive = true;
       this.mouse.cpsClicks = 1;
       this.mouse.cpsTimeLeft = 5;
 
-      const timerEl = document.getElementById('mouse-cps-timer');
-      const valEl = document.getElementById('mouse-cps-val');
-      const countEl = document.getElementById('mouse-cps-clicks');
-
       if (timerEl) timerEl.textContent = '5.0s';
       if (countEl) countEl.textContent = '1';
+      if (valEl) valEl.textContent = '0.2';
+
+      // Live animated state in the purple button
+      if (cpsBtn) {
+        cpsBtn.innerHTML = `
+          <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center">
+            <div class="text-xl sm:text-2xl font-black text-indigo-900 dark:text-indigo-100 tracking-tight flex items-center gap-2">
+              <span class="animate-ping w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
+              <span>${this.t('cps_clicking', 'КЛИКАЙТЕ!', 'CLICK FAST!')}</span>
+            </div>
+            <div class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+              <span id="mouse-cps-live-clicks">1</span> ${this.t('cps_clicks_word', 'кликов', 'clicks')} • <span id="mouse-cps-live-time">5.0s</span>
+            </div>
+          </div>
+        `;
+      }
 
       const startTime = performance.now();
 
@@ -1226,6 +1258,8 @@ const HardwareTools = {
         const remaining = Math.max(0, 5 - elapsed);
 
         if (timerEl) timerEl.textContent = `${remaining.toFixed(1)}s`;
+        const liveTime = document.getElementById('mouse-cps-live-time');
+        if (liveTime) liveTime.textContent = `${remaining.toFixed(1)}s`;
 
         const currentCps = this.mouse.cpsClicks / Math.max(0.1, elapsed);
         if (valEl) valEl.textContent = currentCps.toFixed(1);
@@ -1238,19 +1272,76 @@ const HardwareTools = {
           if (valEl) valEl.textContent = finalCps.toFixed(1);
           if (timerEl) timerEl.textContent = this.t('cps_finished', 'Тест завершен!', 'Finished!');
 
+          let rankTitle, rankEmoji, rankBadgeColor;
+          if (finalCps >= 14) {
+            rankTitle = this.t('cps_rank_godlike', 'Человек-молния', 'Godlike Clicker');
+            rankEmoji = '⚡';
+            rankBadgeColor = 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+          } else if (finalCps >= 11) {
+            rankTitle = this.t('cps_rank_pro', 'Киберспортсмен', 'Esports Pro');
+            rankEmoji = '🔥';
+            rankBadgeColor = 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800';
+          } else if (finalCps >= 8) {
+            rankTitle = this.t('cps_rank_fast', 'Быстрый кликер', 'Fast Clicker');
+            rankEmoji = '🚀';
+            rankBadgeColor = 'bg-indigo-100 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
+          } else if (finalCps >= 5) {
+            rankTitle = this.t('cps_rank_normal', 'Обычная скорость', 'Normal Speed');
+            rankEmoji = '🖱️';
+            rankBadgeColor = 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
+          } else {
+            rankTitle = this.t('cps_rank_slow', 'Неторопливый клик', 'Casual Clicker');
+            rankEmoji = '🐢';
+            rankBadgeColor = 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700';
+          }
+
+          const isNewBest = finalCps > this.mouse.cpsBest && this.mouse.cpsClicks > 5;
+
           if (finalCps > this.mouse.cpsBest) {
             this.mouse.cpsBest = finalCps;
             localStorage.setItem('omnikit_cps_best', finalCps.toString());
             const bestEl = document.getElementById('mouse-cps-best');
             if (bestEl) bestEl.textContent = finalCps.toFixed(1);
           }
+
+          // RENDER FULL RICH RESULT ON THE ENTIRE PURPLE BUTTON
+          if (cpsBtn) {
+            cpsBtn.innerHTML = `
+              <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center py-2 w-full animate-fade-in">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs uppercase font-extrabold tracking-wider text-indigo-600 dark:text-indigo-400">
+                    ${this.t('cps_result_title', 'Результат теста', 'Test Result')}
+                  </span>
+                  ${isNewBest ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-amber-950 shadow-sm animate-bounce">${this.t('cps_new_record', 'Новый рекорд!', 'New Record!')}</span>` : ''}
+                </div>
+                
+                <div class="text-4xl sm:text-5xl font-black text-indigo-950 dark:text-white tracking-tight my-1">
+                  ${finalCps.toFixed(1)} <span class="text-xl sm:text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">CPS</span>
+                </div>
+
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${rankBadgeColor} my-1.5 shadow-sm">
+                  <span>${rankEmoji}</span>
+                  <span>${rankTitle}</span>
+                  <span class="opacity-40">•</span>
+                  <span>${this.mouse.cpsClicks} ${this.t('cps_clicks_in_5s', 'кликов за 5 сек', 'clicks in 5s')}</span>
+                </div>
+
+                <div class="text-[11px] text-indigo-600/80 dark:text-indigo-300/80 font-medium mt-1 flex items-center gap-1.5">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                  <span>${this.t('cps_try_again', 'Кликните, чтобы попробовать снова', 'Click to try again')}</span>
+                </div>
+              </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+          }
         }
       }, 50);
 
     } else {
       this.mouse.cpsClicks++;
-      const countEl = document.getElementById('mouse-cps-clicks');
       if (countEl) countEl.textContent = this.mouse.cpsClicks;
+      const liveClicks = document.getElementById('mouse-cps-live-clicks');
+      if (liveClicks) liveClicks.textContent = this.mouse.cpsClicks;
     }
   },
 

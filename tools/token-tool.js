@@ -11,36 +11,30 @@ const TokenTool = {
 
   // Cutting-Edge 2026 Flagship models (available instantly offline)
     // Comprehensive 100% In-Browser Flagship AI Models (Zero external requests)
+    // Cutting-Edge 2026 Flagship models (available instantly offline, zero network calls)
   baseModels: [
-    // OpenAI Models
+    // 2026 Latest Flagship Releases (Featured First)
+    { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5', provider: 'anthropic', inputPerM: 4.00, outputPerM: 20.00, context: 500000, date: '2026-09' },
+    { id: 'anthropic/claude-sonnet-5.5', name: 'Claude Sonnet 5.5', provider: 'anthropic', inputPerM: 2.00, outputPerM: 10.00, context: 500000, date: '2026-09' },
+    { id: 'anthropic/claude-haiku-5.5', name: 'Claude Haiku 5.5', provider: 'anthropic', inputPerM: 0.10, outputPerM: 0.50, context: 250000, date: '2026-10' },
+    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openai', inputPerM: 2.00, outputPerM: 12.00, context: 256000, date: '2026-07' },
+    { id: 'openai/gpt-5.5', name: 'OpenAI GPT-5.5', provider: 'openai', inputPerM: 5.00, outputPerM: 30.00, context: 256000, date: '2026-04' },
+    { id: 'openai/gpt-5.4-mini', name: 'OpenAI GPT-5.4 Mini', provider: 'openai', inputPerM: 0.75, outputPerM: 4.50, context: 128000, date: '2026-03' },
+    { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek V4.1 Flash', provider: 'deepseek', inputPerM: 0.15, outputPerM: 0.60, context: 1048576, date: '2026-10' },
+    { id: 'deepseek/deepseek-chat-v3.1', name: 'DeepSeek V3.1', provider: 'deepseek', inputPerM: 0.25, outputPerM: 0.95, context: 128000, date: '2026-03' },
+    { id: 'google/gemini-4-argon', name: 'Google Gemini 4 Argon', provider: 'google', inputPerM: 2.00, outputPerM: 10.00, context: 2000000, date: '2026-10' },
     { id: 'openai/o3', name: 'OpenAI o3 (Reasoning)', provider: 'openai', inputPerM: 2.00, outputPerM: 8.00, context: 200000, date: '2025-04' },
+    { id: 'deepseek/deepseek-r1-0528', name: 'DeepSeek R1', provider: 'deepseek', inputPerM: 0.50, outputPerM: 2.15, context: 128000, date: '2025-05' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Meta Llama 3.3 70B', provider: 'meta', inputPerM: 0.10, outputPerM: 0.32, context: 131072, date: '2025-12' },
+
+    // Established Benchmark Models
     { id: 'openai/gpt-4o', name: 'OpenAI GPT-4o', provider: 'openai', inputPerM: 2.50, outputPerM: 10.00, context: 128000, date: '2024-05' },
     { id: 'openai/gpt-4o-mini', name: 'OpenAI GPT-4o Mini', provider: 'openai', inputPerM: 0.15, outputPerM: 0.60, context: 128000, date: '2024-07' },
     { id: 'openai/o1', name: 'OpenAI o1', provider: 'openai', inputPerM: 15.00, outputPerM: 60.00, context: 200000, date: '2024-09' },
     { id: 'openai/o1-mini', name: 'OpenAI o1-mini', provider: 'openai', inputPerM: 3.00, outputPerM: 12.00, context: 128000, date: '2024-09' },
-    { id: 'openai/gpt-4-turbo', name: 'OpenAI GPT-4 Turbo', provider: 'openai', inputPerM: 10.00, outputPerM: 30.00, context: 128000, date: '2024-04' },
-    { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT-3.5 Turbo', provider: 'openai', inputPerM: 0.50, outputPerM: 1.50, context: 16385, date: '2023-11' },
-
-    // Anthropic Claude
     { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', inputPerM: 3.00, outputPerM: 15.00, context: 200000, date: '2024-10' },
     { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', provider: 'anthropic', inputPerM: 0.80, outputPerM: 4.00, context: 200000, date: '2024-11' },
-    { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', provider: 'anthropic', inputPerM: 15.00, outputPerM: 75.00, context: 200000, date: '2024-03' },
-
-    // DeepSeek
-    { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3 (Chat)', provider: 'deepseek', inputPerM: 0.14, outputPerM: 0.28, context: 64000, date: '2025-01' },
-    { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1 (Reasoning)', provider: 'deepseek', inputPerM: 0.55, outputPerM: 2.19, context: 64000, date: '2025-01' },
-
-    // Google Gemini
     { id: 'google/gemini-2.0-flash', name: 'Google Gemini 2.0 Flash', provider: 'google', inputPerM: 0.10, outputPerM: 0.40, context: 1048576, date: '2025-02' },
-    { id: 'google/gemini-1.5-pro', name: 'Google Gemini 1.5 Pro', provider: 'google', inputPerM: 1.25, outputPerM: 5.00, context: 2097152, date: '2024-05' },
-    { id: 'google/gemini-1.5-flash', name: 'Google Gemini 1.5 Flash', provider: 'google', inputPerM: 0.075, outputPerM: 0.30, context: 1048576, date: '2024-05' },
-
-    // Meta Llama
-    { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Meta Llama 3.3 70B', provider: 'meta', inputPerM: 0.12, outputPerM: 0.30, context: 131072, date: '2024-12' },
-    { id: 'meta-llama/llama-3.1-405b-instruct', name: 'Meta Llama 3.1 405B', provider: 'meta', inputPerM: 0.80, outputPerM: 2.40, context: 131072, date: '2024-07' },
-    { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Meta Llama 3.1 8B', provider: 'meta', inputPerM: 0.03, outputPerM: 0.06, context: 131072, date: '2024-07' },
-
-    // Mistral AI
     { id: 'mistralai/mistral-large-2411', name: 'Mistral Large 2', provider: 'other', inputPerM: 2.00, outputPerM: 6.00, context: 128000, date: '2024-11' },
     { id: 'mistralai/codestral-2501', name: 'Codestral 2501', provider: 'other', inputPerM: 0.30, outputPerM: 0.90, context: 256000, date: '2025-01' }
   ],
@@ -51,6 +45,10 @@ const TokenTool = {
   tokens: 0,
 
   init() {
+    try {
+      localStorage.removeItem('omnikit_ai_models');
+      localStorage.removeItem('omnikit_ai_models_v2');
+    } catch (e) {}
     this.models = [...this.baseModels];
     this.bindEvents();
     this.updateSyncBadge();
@@ -180,7 +178,7 @@ const TokenTool = {
     const badge = document.getElementById('token-sync-badge');
     if (!badge) return;
     const count = this.models.length;
-    badge.textContent = `● Offline DB (${count} models)`;
+    badge.textContent = `● Offline DB (${count} models, 2026)`;
     badge.className = 'text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20';
   },
 
