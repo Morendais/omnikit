@@ -234,6 +234,16 @@
       let activeBlobUrl = null;
       let activeGifBlob = null;
 
+      const sanitizeBlob = (url) => {
+        if (!url || typeof url !== 'string') return '';
+        try {
+          const parsed = new URL(url, window.location.origin || 'http://localhost');
+          return parsed.protocol === 'blob:' ? parsed.href : '';
+        } catch (_) {
+          return '';
+        }
+      };
+
       const handleFile = (file) => {
         if (!file || !file.type.startsWith('video/')) {
           if (window.App) window.App.showToast(window.I18N?.currentLang === 'ru' ? 'Выберите видеофайл (MP4, WebM, MOV)' : 'Please select a valid video file (MP4, WebM, MOV)', 'error');
@@ -242,8 +252,11 @@
         currentFile = file;
         if (activeBlobUrl) URL.revokeObjectURL(activeBlobUrl);
         activeBlobUrl = URL.createObjectURL(file);
-        videoEl.src = activeBlobUrl;
-        videoEl.load();
+        const safeUrl = sanitizeBlob(activeBlobUrl);
+        if (safeUrl) {
+          videoEl.src = safeUrl;
+          videoEl.load();
+        }
 
         videoEl.onloadedmetadata = () => {
           controls.classList.remove('hidden');
@@ -264,13 +277,15 @@
       dropzone.addEventListener('dragover', (e) => e.preventDefault());
       dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-          handleFile(e.dataTransfer.files[0]);
+        const files = e.dataTransfer?.files;
+        if (files && files.length) {
+          handleFile(files[0]);
         }
       });
-      input.addEventListener('change', (e) => {
-        if (e.target && e.target.files && e.target.files.length) {
-          handleFile(e.target.files[0]);
+      input.addEventListener('change', () => {
+        const files = input.files;
+        if (files && files.length) {
+          handleFile(files[0]);
         }
       });
 
@@ -339,7 +354,8 @@
               });
 
               const gifUrl = URL.createObjectURL(activeGifBlob);
-              if (resultImg) resultImg.src = gifUrl;
+              const safeGif = sanitizeBlob(gifUrl);
+              if (resultImg && safeGif) resultImg.src = safeGif;
               if (sizeTag) sizeTag.textContent = `${(activeGifBlob.size / 1024).toFixed(1)} KB`;
               resultCard.classList.remove('hidden');
               progressBox.classList.add('hidden');
@@ -416,9 +432,10 @@
           handleFile(e.dataTransfer.files[0]);
         }
       });
-      input.addEventListener('change', (e) => {
-        if (e.target && e.target.files && e.target.files.length) {
-          handleFile(e.target.files[0]);
+      input.addEventListener('change', () => {
+        const files = input.files;
+        if (files && files.length) {
+          handleFile(files[0]);
         }
       });
 
@@ -439,7 +456,8 @@
             activeAudioBlob = encodeWav(audioBuffer);
             const audioUrl = URL.createObjectURL(activeAudioBlob);
 
-            if (audioPlayer) audioPlayer.src = audioUrl;
+            const safeAudio = sanitizeBlob(audioUrl);
+            if (audioPlayer && safeAudio) audioPlayer.src = safeAudio;
             if (sizeTag) sizeTag.textContent = `${(activeAudioBlob.size / (1024 * 1024)).toFixed(2)} MB`;
 
             resultCard.classList.remove('hidden');
