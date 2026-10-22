@@ -222,42 +222,51 @@ const MediaExtended = {
       renderList();
     };
 
-    const escapeHtml = (str) => {
-      const d = document.createElement('div');
-      d.textContent = str || '';
-      return d.innerHTML;
-    };
-
     const renderList = () => {
       if (!fileListEl) return;
+      fileListEl.textContent = '';
       if (loadedFiles.length === 0) {
-        fileListEl.innerHTML = '';
         generateBtn.classList.add('hidden');
         return;
       }
       generateBtn.classList.remove('hidden');
-      fileListEl.innerHTML = `
-        <div class="space-y-2 mt-4">
-          <p class="text-xs text-neutral-500 font-medium">Выбрано файлов: ${loadedFiles.length}</p>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            ${loadedFiles.map((f, i) => `
-              <div class="p-2 border border-neutral-200 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900 text-[11px] truncate flex items-center justify-between">
-                <span class="truncate">${escapeHtml(f.name)}</span>
-                <button type="button" class="text-red-500 hover:text-red-700 ml-1 remove-pdf-img" data-idx="${i}">✕</button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
 
-      fileListEl.querySelectorAll('.remove-pdf-img').forEach(btn => {
-        btn.onclick = (e) => {
-          const idx = parseInt(e.target.dataset.idx, 10);
-          loadedFiles.splice(idx, 1);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'space-y-2 mt-4';
+
+      const countP = document.createElement('p');
+      countP.className = 'text-xs text-neutral-500 font-medium';
+      countP.textContent = 'Выбрано файлов: ' + loadedFiles.length;
+      wrapper.appendChild(countP);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid grid-cols-2 sm:grid-cols-4 gap-2';
+
+      loadedFiles.forEach((f, i) => {
+        const item = document.createElement('div');
+        item.className = 'p-2 border border-neutral-200 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900 text-[11px] truncate flex items-center justify-between';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'truncate';
+        nameSpan.textContent = f.name || '';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'text-red-500 hover:text-red-700 ml-1 remove-pdf-img';
+        removeBtn.textContent = '✕';
+        removeBtn.addEventListener('click', () => {
+          loadedFiles.splice(i, 1);
           renderList();
-        };
+        });
+
+        item.appendChild(nameSpan);
+        item.appendChild(removeBtn);
+        grid.appendChild(item);
       });
-    };
+
+      wrapper.appendChild(grid);
+      fileListEl.appendChild(wrapper);
+    };;
 
     dropzone.addEventListener('click', () => input.click());
     dropzone.addEventListener('dragover', (e) => e.preventDefault());
@@ -436,15 +445,24 @@ const MediaExtended = {
         dlBtn.appendChild(spanText);
 
         dlBtn.addEventListener('click', () => {
-          const dUrl = URL.createObjectURL(blob);
-          if (typeof dUrl === 'string' && dUrl.startsWith('blob:')) {
-            const a = document.createElement('a');
-            a.href = dUrl;
-            a.download = safeBase + '.' + outExt;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(dUrl), 30000);
+          if (!blob || !(blob instanceof Blob)) return;
+          const blobUrl = window.URL.createObjectURL(blob);
+          try {
+            const parsed = new URL(blobUrl);
+            if (parsed.protocol === 'blob:') {
+              const safeExt = String(outExt).replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+              const cleanBase = String(safeBase).replace(/[^a-zA-Z0-9_\-]/g, '_') || 'converted';
+              const a = document.createElement('a');
+              a.style.display = 'none';
+              a.setAttribute('download', cleanBase + '.' + safeExt);
+              a.setAttribute('rel', 'noopener noreferrer');
+              a.setAttribute('href', parsed.href);
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+          } finally {
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30000);
           }
         });
         
@@ -480,7 +498,11 @@ const MediaExtended = {
           };
           img.onerror = () => {
             URL.revokeObjectURL(objUrl);
-            statusBox.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs text-rose-600">${isRu ? 'Ошибка чтения картинки' : 'Error reading image'}</div>`;
+            statusBox.textContent = '';
+            const errDiv = document.createElement('div');
+            errDiv.className = 'p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs text-rose-600';
+            errDiv.textContent = isRu ? 'Ошибка чтения картинки' : 'Error reading image';
+            statusBox.appendChild(errDiv);
           };
           img.src = objUrl;
           return;
@@ -513,13 +535,14 @@ const MediaExtended = {
           showSuccessResult(blob, 'jpg', 'image/jpeg');
         }, 'image/jpeg', 0.92);
       } catch (err) {
-        statusBox.innerHTML = `
-          <div class="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-center space-y-2">
-            <p class="text-xs font-semibold text-amber-600 dark:text-amber-400">
-              ${isRu ? 'Не удалось декодировать файл. Убедитесь, что это действительное изображение.' : 'Could not decode file. Please ensure it is a valid image.'}
-            </p>
-          </div>
-        `;
+        statusBox.textContent = '';
+        const warnCard = document.createElement('div');
+        warnCard.className = 'p-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-center space-y-2';
+        const warnP = document.createElement('p');
+        warnP.className = 'text-xs font-semibold text-amber-600 dark:text-amber-400';
+        warnP.textContent = isRu ? 'Не удалось декодировать файл. Убедитесь, что это действительное изображение.' : 'Could not decode file. Please ensure it is a valid image.';
+        warnCard.appendChild(warnP);
+        statusBox.appendChild(warnCard);
       }
     };
 
