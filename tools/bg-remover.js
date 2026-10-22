@@ -1,7 +1,8 @@
 /**
  * OmniKit In-Browser Background Remover
  * 100% Client-Side In-Browser Segmentation Engine
- * Runs completely via Canvas 2D & Web APIs on local device. Zero server uploads. Zero external CDNs.
+ * Powered by U2-Net INT8 Neural Network via ONNX Runtime Web (WebGPU & WASM SIMD).
+ * Zero server uploads. Zero external CDNs.
  */
 
 const BgRemover = {
@@ -11,6 +12,19 @@ const BgRemover = {
   cutoutImage: null,
   activeBgMode: 'transparent', // 'transparent' | 'white' | 'black' | 'custom'
   customBgColor: '#ffffff',
+  session: null,
+  isModelLoading: false,
+
+  MODEL: {
+    id: 'u2net_int8',
+    url: '/assets/models/bg/u2net_int8.onnx',
+    sizeBytes: 44212603,
+    sizeMB: '42.1'
+  },
+
+  DB_NAME: 'omnikit_models_cache',
+  DB_VERSION: 1,
+  STORE_NAME: 'bg_models',
 
   init() {
     this.bindEvents();
@@ -97,6 +111,232 @@ const BgRemover = {
     resultState?.classList.add('hidden');
   },
 
+  async loadOrt() {
+    if (typeof ort !== 'undefined') return true;
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = '/assets/js/vendor/ort/ort.all.min.js';
+      script.onload = () => {
+        if (typeof ort !== 'undefined') {
+          ort.env.wasm.wasmPaths = '/assets/js/vendor/ort/';
+          ort.env.wasm.numThreads = Math.min(4, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2);
+          ort.env.wasm.simd = true;
+        }
+        resolve(true);
+      };
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  },
+
+  async getDB() {
+    return new Promise((resolve) => {
+      if (typeof indexedDB === 'undefined') return resolve(null);
+      const req = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  },
+
+  async getCachedModel(id) {
+    try {
+      const db = await this.getDB();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.STORE_NAME, 'readonly');
+        const store = tx.objectStore(this.STORE_NAME);
+        const req = store.get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  async saveModelToCache(id, buffer) {
+    try {
+      const db = await this.getDB();
+      if (!db) return;
+      const tx = db.transaction(this.STORE_NAME, 'readwrite');
+      const store = tx.objectStore(this.STORE_NAME);
+      store.put(buffer, id);
+    } catch (e) {
+      console.warn('Could not cache model to IndexedDB:', e);
+    }
+  },
+
+  async fetchModelBuffer(onProgress) {
+    const isRu = (window.I18N?.currentLang || 'en') === 'ru';
+    
+    // Check IndexedDB cache
+    const cached = await this.getCachedModel(this.MODEL.id);
+    if (cached) {
+      if (onProgress) onProgress(40, isRu ? 'Загрузка AI модели из локального кэша...' : 'Loading AI model from local cache...');
+      return cached;
+    }
+
+    if (onProgress) onProgress(10, isRu ? `Загрузка AI модели (${this.MODEL.sizeMB} МБ)...` : `Downloading AI model (${this.MODEL.sizeMB} MB)...`);
+
+    const resp = await fetch(this.MODEL.url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} loading model`);
+
+    const contentLength = resp.headers.get('content-length');
+    const total = contentLength ? parseInt(contentLength, 10) : this.MODEL.sizeBytes;
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      const pct = Math.min(95, Math.round((received / total) * 100));
+      const mbReceived = (received / (1024 * 1024)).toFixed(1);
+      const mbTotal = (total / (1024 * 1024)).toFixed(1);
+      if (onProgress) {
+        onProgress(
+          Math.max(10, Math.round(pct * 0.5)),
+          isRu ? `Загрузка AI модели (${mbReceived} / ${mbTotal} МБ)...` : `Downloading AI model (${mbReceived} / ${mbTotal} MB)...`
+        );
+      }
+    }
+
+    const fullBuffer = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      fullBuffer.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const buffer = fullBuffer.buffer;
+    this.saveModelToCache(this.MODEL.id, buffer);
+    return buffer;
+  },
+
+  async getSession(onProgress) {
+    if (this.session) return this.session;
+    const ok = await this.loadOrt();
+    if (!ok || typeof ort === 'undefined') return null;
+
+    try {
+      const isRu = (window.I18N?.currentLang || 'en') === 'ru';
+      const buffer = await this.fetchModelBuffer(onProgress);
+
+      if (onProgress) onProgress(55, isRu ? 'Инициализация нейросети U2-Net...' : 'Initializing U2-Net neural engine...');
+      
+      this.session = await ort.InferenceSession.create(buffer, {
+        executionProviders: ['webgpu', 'wasm']
+      });
+      return this.session;
+    } catch (e) {
+      console.warn('Failed to initialize ONNX session:', e);
+      return null;
+    }
+  },
+
+  async neuralRemove(file, onProgress) {
+    const session = await this.getSession(onProgress);
+    if (!session) throw new Error('Neural model unavailable');
+
+    const isRu = (window.I18N?.currentLang || 'en') === 'ru';
+    if (onProgress) onProgress(65, isRu ? 'Подготовка изображения...' : 'Preprocessing image...');
+
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      const url = URL.createObjectURL(file);
+      i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
+      i.onerror = reject;
+      i.src = url;
+    });
+
+    const origW = img.naturalWidth || 800;
+    const origH = img.naturalHeight || 600;
+
+    const inSize = 320;
+    const inCanvas = document.createElement('canvas');
+    inCanvas.width = inSize;
+    inCanvas.height = inSize;
+    const inCtx = inCanvas.getContext('2d');
+    inCtx.drawImage(img, 0, 0, inSize, inSize);
+
+    const imgData = inCtx.getImageData(0, 0, inSize, inSize);
+    const data = imgData.data;
+
+    const mean = [0.485, 0.456, 0.406];
+    const std = [0.229, 0.224, 0.225];
+    const planeSize = inSize * inSize;
+    const floatArr = new Float32Array(3 * planeSize);
+
+    for (let i = 0; i < planeSize; i++) {
+      const r = data[i * 4] / 255.0;
+      const g = data[i * 4 + 1] / 255.0;
+      const b = data[i * 4 + 2] / 255.0;
+      floatArr[i] = (r - mean[0]) / std[0];
+      floatArr[planeSize + i] = (g - mean[1]) / std[1];
+      floatArr[2 * planeSize + i] = (b - mean[2]) / std[2];
+    }
+
+    const tensor = new ort.Tensor('float32', floatArr, [1, 3, inSize, inSize]);
+    const feeds = {};
+    feeds[session.inputNames[0]] = tensor;
+
+    if (onProgress) onProgress(80, isRu ? 'Нейросетевая сегментация контуров...' : 'Neural segmentation in progress...');
+    const results = await session.run(feeds);
+    const outputTensor = results[session.outputNames[0]];
+    const maskData = outputTensor.data;
+
+    let minVal = Infinity, maxVal = -Infinity;
+    for (let i = 0; i < maskData.length; i++) {
+      const v = maskData[i];
+      if (v < minVal) minVal = v;
+      if (v > maxVal) maxVal = v;
+    }
+    const valRange = (maxVal - minVal) || 1e-6;
+
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = inSize;
+    maskCanvas.height = inSize;
+    const maskCtx = maskCanvas.getContext('2d');
+    const maskImgData = maskCtx.createImageData(inSize, inSize);
+    const mData = maskImgData.data;
+
+    for (let i = 0; i < planeSize; i++) {
+      const norm = (maskData[i] - minVal) / valRange;
+      const alpha = Math.round(norm * 255);
+      const idx = i * 4;
+      mData[idx] = 255;
+      mData[idx + 1] = 255;
+      mData[idx + 2] = 255;
+      mData[idx + 3] = alpha;
+    }
+    maskCtx.putImageData(maskImgData, 0, 0);
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = origW;
+    outCanvas.height = origH;
+    const outCtx = outCanvas.getContext('2d');
+    outCtx.imageSmoothingEnabled = true;
+    outCtx.imageSmoothingQuality = 'high';
+
+    outCtx.drawImage(img, 0, 0);
+    outCtx.globalCompositeOperation = 'destination-in';
+    outCtx.drawImage(maskCanvas, 0, 0, origW, origH);
+    outCtx.globalCompositeOperation = 'source-over';
+
+    if (onProgress) onProgress(95, isRu ? 'Финальная отрисовка...' : 'Final rendering...');
+    return new Promise((resolve) => {
+      outCanvas.toBlob((blob) => resolve(blob || file), 'image/png');
+    });
+  },
+
   async canvasRemove(file) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -114,7 +354,6 @@ const BgRemover = {
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
-        // Sample border perimeter pixels for accurate background color detection
         let bgR = 0, bgG = 0, bgB = 0;
         const samples = [
           0,
@@ -135,7 +374,6 @@ const BgRemover = {
         bgG /= samples.length;
         bgB /= samples.length;
 
-        // Color distance segmentation threshold with soft feathering
         const threshold = 40;
         const feather = 20;
 
@@ -144,7 +382,6 @@ const BgRemover = {
           const g = data[i + 1];
           const b = data[i + 2];
 
-          // Weighted Euclidean color distance
           const diff = Math.sqrt(
             0.299 * (r - bgR) ** 2 +
             0.587 * (g - bgG) ** 2 +
@@ -152,9 +389,8 @@ const BgRemover = {
           );
 
           if (diff < threshold) {
-            data[i + 3] = 0; // 100% transparent
+            data[i + 3] = 0;
           } else if (diff < threshold + feather) {
-            // Soft anti-aliased edge transition
             const alphaFactor = (diff - threshold) / feather;
             data[i + 3] = Math.round(data[i + 3] * alphaFactor);
           }
@@ -168,6 +404,15 @@ const BgRemover = {
       img.onerror = () => resolve(file);
       img.src = objUrl;
     });
+  },
+
+  async removeBackground(file, onProgress) {
+    try {
+      return await this.neuralRemove(file, onProgress);
+    } catch (e) {
+      console.warn('Neural segmentation fallback to color distance:', e);
+      return await this.canvasRemove(file);
+    }
   },
 
   async handleFile(file) {
@@ -190,15 +435,16 @@ const BgRemover = {
     resultState?.classList.add('hidden');
     loadingState?.classList.remove('hidden');
 
+    const updateProgress = (pct, label) => {
+      if (progressFill) progressFill.style.width = `${pct}%`;
+      if (progressPercent) progressPercent.textContent = `${pct}%`;
+      if (progressLabel && label) progressLabel.textContent = label;
+    };
+
     const isRu = (window.I18N?.currentLang || 'en') === 'ru';
-    if (progressFill) progressFill.style.width = '20%';
-    if (progressPercent) progressPercent.textContent = '20%';
-    if (progressLabel) {
-      progressLabel.textContent = isRu ? 'Анализ цветовых контуров...' : 'Analyzing color contours...';
-    }
+    updateProgress(5, isRu ? 'Чтение файла...' : 'Reading image file...');
 
     try {
-      // 1. Load original image for preview
       const originalDataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
@@ -212,30 +458,11 @@ const BgRemover = {
       });
       this.originalImage = origImg;
 
-      // Small delay for UI smoothness
+      const resultBlob = await this.removeBackground(file, updateProgress);
+
+      updateProgress(100, isRu ? 'Готово!' : 'Complete!');
       await new Promise(r => setTimeout(r, 60));
 
-      if (progressFill) progressFill.style.width = '60%';
-      if (progressPercent) progressPercent.textContent = '60%';
-      if (progressLabel) {
-        progressLabel.textContent = isRu ? 'Сегментация и удаление фона...' : 'Segmenting background contours...';
-      }
-
-      // 2. Perform in-browser client-side segmentation
-      const resultBlob = await this.canvasRemove(file);
-
-      if (progressFill) progressFill.style.width = '90%';
-      if (progressPercent) progressPercent.textContent = '90%';
-      if (progressLabel) {
-        progressLabel.textContent = isRu ? 'Финальная отрисовка...' : 'Final rendering...';
-      }
-
-      await new Promise(r => setTimeout(r, 60));
-
-      if (progressFill) progressFill.style.width = '100%';
-      if (progressPercent) progressPercent.textContent = '100%';
-
-      // 3. Load cutout image
       const resultDataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
@@ -249,14 +476,12 @@ const BgRemover = {
       });
       this.cutoutImage = cutImg;
 
-      // 4. Show result state
       loadingState?.classList.add('hidden');
       resultState?.classList.remove('hidden');
 
       const origPreview = document.getElementById('bg-orig-preview');
       if (origPreview) origPreview.src = originalDataUrl;
 
-      // Render canvas
       this.renderCanvas();
 
     } catch (err) {
