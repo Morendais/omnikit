@@ -403,25 +403,23 @@ const MediaExtended = {
       const showSuccessResult = (blob, outExt, outMime) => {
         const url = URL.createObjectURL(blob);
         statusBox.innerHTML = `
-          <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 space-y-4 shadow-sm animate-fade-in">
-            <div class="flex items-center gap-3.5">
+          <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-sm animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5 min-w-0">
               <img src="${url}" alt="Preview" class="w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800">
-              <div class="min-w-0 flex-1 text-left">
+              <div class="min-w-0 text-left">
                 <div class="flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                  <h4 class="font-bold text-sm text-neutral-900 dark:text-neutral-100 truncate">${safeBase}.${outExt}</h4>
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+                  <h4 class="font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 truncate">${safeBase}.${outExt}</h4>
                 </div>
                 <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
                   ${isRu ? 'Исходный' : 'Original'}: ${(file.size / 1024).toFixed(1)} KB • ${isRu ? 'Готово' : 'Output'}: ${(blob.size / 1024).toFixed(1)} KB
                 </p>
               </div>
             </div>
-            <div class="flex items-center justify-end gap-2 pt-2 border-t border-emerald-500/20">
-              <a href="${url}" download="${safeBase}.${outExt}" class="btn-primary text-xs py-2 px-4 rounded-xl inline-flex items-center gap-1.5 shadow-sm">
-                <i data-lucide="download" class="w-4 h-4"></i>
-                <span>${isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`}</span>
-              </a>
-            </div>
+            <a href="${url}" download="${safeBase}.${outExt}" class="btn-primary text-xs py-2.5 px-5 rounded-xl inline-flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>${isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`}</span>
+            </a>
           </div>
         `;
         if (window.lucide) lucide.createIcons();

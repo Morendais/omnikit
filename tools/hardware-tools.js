@@ -1273,7 +1273,7 @@ const HardwareTools = {
         const anomEl = document.getElementById('mouse-wheel-anomalies');
         if (anomEl) {
           anomEl.textContent = this.mouse.wheelAnomaliesCount;
-          anomEl.className = 'font-black text-2xl text-rose-500 animate-pulse';
+          anomEl.className = 'font-black text-2xl text-amber-500 dark:text-amber-400';
         }
       }
     }
@@ -1371,13 +1371,14 @@ const HardwareTools = {
 
       if (cpsBtn) {
         cpsBtn.innerHTML = `
-          <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full">
-            <div class="text-xl sm:text-2xl font-black text-indigo-900 dark:text-indigo-100 tracking-tight flex items-center gap-2">
-              <span class="animate-ping w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
-              <span>${this.t('cps_clicking', 'КЛИКАЙТЕ!', 'CLICK FAST!')}</span>
+          <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full py-1 animate-fade-in">
+            <div class="text-4xl sm:text-5xl font-mono font-black text-indigo-600 dark:text-indigo-400 tracking-tight my-1 flex items-center justify-center gap-2">
+              <span id="mouse-cps-live-time">${duration}.0s</span>
             </div>
-            <div class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1.5">
-              <span id="mouse-cps-live-clicks">1</span> ${this.t('cps_clicks_word', 'кликов', 'clicks')} • <span id="mouse-cps-live-time">${duration}.0s</span>
+            <div class="text-xs sm:text-sm font-bold text-neutral-600 dark:text-neutral-300 tracking-wide flex items-center justify-center gap-1.5 mt-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping inline-block"></span>
+              <span id="mouse-cps-live-clicks" class="text-indigo-600 dark:text-indigo-400 font-black text-base">1</span>
+              <span>${this.t('cps_clicks_word', 'кликов', 'clicks')} • ${this.t('cps_clicking', 'КЛИКАЙТЕ БЫСТРЕЕ!', 'CLICK AS FAST AS YOU CAN!')}</span>
             </div>
           </div>
         `;
@@ -1477,7 +1478,7 @@ const HardwareTools = {
     const wheelTotal = document.getElementById('mouse-wheel-total');
     if (wheelTotal) wheelTotal.textContent = '0';
     const wheelAnomalies = document.getElementById('mouse-wheel-anomalies');
-    if (wheelAnomalies) wheelAnomalies.textContent = '0';
+    if (wheelAnomalies) { wheelAnomalies.textContent = '0'; wheelAnomalies.className = 'font-black text-2xl text-neutral-700 dark:text-neutral-300'; }
     const wheelDir = document.getElementById('mouse-wheel-dir');
     if (wheelDir) wheelDir.textContent = '—';
   },

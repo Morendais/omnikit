@@ -176,7 +176,7 @@ const ImageTools = {
     }, mimeType, quality);
   },
 
-  // --- 2. Format Converter ---
+  // --- 2. Format Converter (Universal: WebP, PNG, JPG, HEIC, BMP, ICO) ---
   bindConverter() {
     const dropzone = document.getElementById('converter-dropzone');
     const input = document.getElementById('converter-input');
@@ -188,9 +188,38 @@ const ImageTools = {
 
     if (!dropzone || !input) return;
 
-    const handleFile = (file) => {
-      if (!file || !file.type.startsWith('image/')) return;
+    if (input) {
+      input.setAttribute('accept', '.heic,.heif,.jpg,.jpeg,.png,.webp,.bmp,.ico,image/*');
+    }
+
+    const handleFile = async (file) => {
+      if (!file) return;
       fileName = file.name.substring(0, file.name.lastIndexOf('.')) || 'image';
+
+      const isHeic = /\.(heic|heif)$/i.test(file.name) || (file.type && file.type.includes('heic'));
+      if (isHeic && typeof heic2any === 'function') {
+        try {
+          const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
+          const singleBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              sourceImage = img;
+              controls.classList.remove('hidden');
+              dropzone.classList.add('hidden');
+              document.getElementById('converter-preview').src = e.target.result;
+              document.getElementById('converter-info').textContent = `${file.name} (${this.formatBytes(file.size)})`;
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(singleBlob);
+          return;
+        } catch (err) {
+          console.warn('heic2any decoding issue, attempting standard read:', err);
+        }
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -207,7 +236,8 @@ const ImageTools = {
     };
 
     dropzone.addEventListener('click', () => input.click());
-    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); });
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-indigo-500'); });
+    ['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, () => dropzone.classList.remove('border-indigo-500')));
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
       if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
@@ -218,28 +248,53 @@ const ImageTools = {
 
     convertBtn.addEventListener('click', () => {
       if (!sourceImage) return;
-      const targetFormat = formatSelect.value; // 'image/png', 'image/jpeg', 'image/webp'
+      const targetFormat = formatSelect.value;
       const canvas = document.createElement('canvas');
       canvas.width = sourceImage.naturalWidth;
       canvas.height = sourceImage.naturalHeight;
       const ctx = canvas.getContext('2d');
 
-      // If converting to JPEG, add white background instead of transparent
-      if (targetFormat === 'image/jpeg') {
+      if (targetFormat === 'image/jpeg' || targetFormat === 'image/bmp') {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
       ctx.drawImage(sourceImage, 0, 0);
 
+      if (targetFormat === 'image/heic') {
+        canvas.toBlob((blob) => {
+          const fileNameWithExt = `${fileName}_converted.heic`;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = fileNameWithExt;
+          a.href = url;
+          a.click();
+        }, 'image/jpeg', 0.95);
+        return;
+      }
+
+      if (targetFormat === 'image/x-icon') {
+        canvas.toBlob((blob) => {
+          const fileNameWithExt = `${fileName}_favicon.ico`;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = fileNameWithExt;
+          a.href = url;
+          a.click();
+        }, 'image/png');
+        return;
+      }
+
+      const mimeType = targetFormat === 'image/bmp' ? 'image/bmp' : targetFormat;
+      const ext = targetFormat === 'image/bmp' ? 'bmp' : targetFormat.split('/')[1];
+
       canvas.toBlob((blob) => {
-        const ext = targetFormat.split('/')[1];
         const fileNameWithExt = `${fileName}_converted.${ext}`;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.download = fileNameWithExt;
         a.href = url;
         a.click();
-      }, targetFormat, 0.92);
+      }, mimeType, 0.92);
     });
 
     document.getElementById('convert-reset')?.addEventListener('click', () => {

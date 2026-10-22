@@ -334,6 +334,7 @@ const TokenTool = {
 
     const text = textarea.value;
     this.tokens = this.countTokens(text);
+    this.updateReasoningTokens();
     const chars = text.length;
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
     const readingTimeSec = Math.ceil((words / 200) * 60);
