@@ -1,7 +1,7 @@
 /**
  * OmniKit In-Browser Background Remover
  * 100% Client-Side In-Browser Segmentation Engine
- * Powered by U2-Net INT8 Neural Network via ONNX Runtime Web (WebGPU & WASM SIMD).
+ * Powered by U2-Net INT8 Neural Network via ONNX Runtime Web WASM SIMD.
  * Zero server uploads. Zero external CDNs.
  */
 
@@ -14,6 +14,7 @@ const BgRemover = {
   customBgColor: '#ffffff',
   session: null,
   isModelLoading: false,
+  _cachedBuffer: null,
 
   MODEL: {
     id: 'u2net_int8',
@@ -22,6 +23,7 @@ const BgRemover = {
     sizeMB: '42.1'
   },
 
+  CACHE_NAME: 'omnikit_model_cache_v1',
   DB_NAME: 'omnikit_models_cache',
   DB_VERSION: 1,
   STORE_NAME: 'bg_models',
@@ -146,13 +148,42 @@ const BgRemover = {
 
   async getCachedModel(id) {
     try {
+      // 1. Check in-memory buffer
+      if (this._cachedBuffer && this._cachedBuffer.byteLength > 10000000) {
+        return this._cachedBuffer.slice(0);
+      }
+
+      // 2. Check CacheStorage API (PWA persistent cache)
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open(this.CACHE_NAME);
+          const match = await cache.match(this.MODEL.url);
+          if (match) {
+            const buf = await match.arrayBuffer();
+            if (buf && buf.byteLength > 10000000) {
+              this._cachedBuffer = buf.slice(0);
+              return buf;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback: Check IndexedDB
       const db = await this.getDB();
       if (!db) return null;
       return new Promise((resolve) => {
         const tx = db.transaction(this.STORE_NAME, 'readonly');
         const store = tx.objectStore(this.STORE_NAME);
         const req = store.get(id);
-        req.onsuccess = () => resolve(req.result || null);
+        req.onsuccess = () => {
+          const res = req.result;
+          if (res && res.byteLength > 10000000) {
+            this._cachedBuffer = res.slice(0);
+            resolve(res);
+          } else {
+            resolve(null);
+          }
+        };
         req.onerror = () => resolve(null);
       });
     } catch {
@@ -162,27 +193,48 @@ const BgRemover = {
 
   async saveModelToCache(id, buffer) {
     try {
+      const copy1 = buffer.slice(0);
+      const copy2 = buffer.slice(0);
+      this._cachedBuffer = copy1;
+
+      // 1. Save to CacheStorage API
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open(this.CACHE_NAME);
+          await cache.put(this.MODEL.url, new Response(copy2, {
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': String(copy2.byteLength)
+            }
+          }));
+        } catch (e) {
+          console.warn('CacheStorage write warning:', e);
+        }
+      }
+
+      // 2. Save to IndexedDB
       const db = await this.getDB();
-      if (!db) return;
-      const tx = db.transaction(this.STORE_NAME, 'readwrite');
-      const store = tx.objectStore(this.STORE_NAME);
-      store.put(buffer, id);
+      if (db) {
+        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+        const store = tx.objectStore(this.STORE_NAME);
+        store.put(buffer.slice(0), id);
+      }
     } catch (e) {
-      console.warn('Could not cache model to IndexedDB:', e);
+      console.warn('Could not cache model:', e);
     }
   },
 
   async fetchModelBuffer(onProgress) {
     const isRu = (window.I18N?.currentLang || 'en') === 'ru';
     
-    // Check IndexedDB cache
+    // Check persistent caches
     const cached = await this.getCachedModel(this.MODEL.id);
     if (cached) {
       if (onProgress) onProgress(40, isRu ? 'AI нейросеть загружена из локального кэша (офлайн)...' : 'AI model loaded from local browser cache (offline)...');
       return cached;
     }
 
-    if (onProgress) onProgress(10, isRu ? 'Первый запуск: загрузка AI модели (42 МБ), далее сохранится в кэше...' : 'First run: downloading AI model (42 MB), will be cached for offline use...');
+    if (onProgress) onProgress(10, isRu ? 'Скачивается только 1 раз (~42 МБ) — сохраняется в постоянном кэше...' : 'Downloading once only (~42 MB) — saving permanently in browser cache...');
 
     const resp = await fetch(this.MODEL.url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status} loading model`);
@@ -204,7 +256,7 @@ const BgRemover = {
       if (onProgress) {
         onProgress(
           Math.max(10, Math.round(pct * 0.5)),
-          isRu ? `Первый запуск: скачивание модели (${mbReceived} / ${mbTotal} МБ, сохранение в кэш)...` : `First run: downloading model (${mbReceived} / ${mbTotal} MB, caching locally)...`
+          isRu ? `Скачивание модели (${mbReceived} / ${mbTotal} МБ, сохранение в кэш навсегда)...` : `Downloading model (${mbReceived} / ${mbTotal} MB, caching permanently)...`
         );
       }
     }
@@ -217,7 +269,7 @@ const BgRemover = {
     }
 
     const buffer = fullBuffer.buffer;
-    this.saveModelToCache(this.MODEL.id, buffer);
+    await this.saveModelToCache(this.MODEL.id, buffer);
     return buffer;
   },
 
@@ -232,8 +284,9 @@ const BgRemover = {
 
       if (onProgress) onProgress(55, isRu ? 'Инициализация нейросети U2-Net...' : 'Initializing U2-Net neural engine...');
       
-      this.session = await ort.InferenceSession.create(buffer, {
-        executionProviders: ['webgpu', 'wasm']
+      // Pass a clone so ORT memory transfers never detach our cached buffer
+      this.session = await ort.InferenceSession.create(buffer.slice(0), {
+        executionProviders: ['wasm']
       });
       return this.session;
     } catch (e) {
@@ -310,7 +363,15 @@ const BgRemover = {
 
     for (let i = 0; i < planeSize; i++) {
       const norm = (maskData[i] - minVal) / valRange;
-      const alpha = Math.round(norm * 255);
+      let alpha;
+      if (norm <= 0.25) {
+        alpha = 0;
+      } else if (norm >= 0.75) {
+        alpha = 255;
+      } else {
+        const t = (norm - 0.25) / 0.50;
+        alpha = Math.round((t * t * (3 - 2 * t)) * 255);
+      }
       const idx = i * 4;
       mData[idx] = 255;
       mData[idx + 1] = 255;
@@ -358,48 +419,32 @@ const BgRemover = {
         const samples = [
           0,
           (w - 1) * 4,
-          ((h - 1) * w) * 4,
-          ((h - 1) * w + (w - 1)) * 4,
-          (Math.floor(w / 2)) * 4,
-          ((h - 1) * w + Math.floor(w / 2)) * 4,
-          (Math.floor(h / 2) * w) * 4,
-          (Math.floor(h / 2) * w + (w - 1)) * 4
+          (h - 1) * w * 4,
+          ((h - 1) * w + (w - 1)) * 4
         ];
         samples.forEach(idx => {
           bgR += data[idx];
           bgG += data[idx + 1];
           bgB += data[idx + 2];
         });
-        bgR /= samples.length;
-        bgG /= samples.length;
-        bgB /= samples.length;
+        bgR /= 4; bgG /= 4; bgB /= 4;
 
-        const threshold = 40;
-        const feather = 20;
-
+        const threshold = 35;
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
-
-          const diff = Math.sqrt(
-            0.299 * (r - bgR) ** 2 +
-            0.587 * (g - bgG) ** 2 +
-            0.114 * (b - bgB) ** 2
-          );
-
-          if (diff < threshold) {
+          const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+          if (dist < threshold) {
             data[i + 3] = 0;
-          } else if (diff < threshold + feather) {
-            const alphaFactor = (diff - threshold) / feather;
-            data[i + 3] = Math.round(data[i + 3] * alphaFactor);
+          } else if (dist < threshold + 25) {
+            const factor = (dist - threshold) / 25;
+            data[i + 3] = Math.round(data[i + 3] * factor);
           }
         }
 
         ctx.putImageData(imgData, 0, 0);
-        canvas.toBlob((blob) => {
-          resolve(blob || file);
-        }, 'image/png');
+        canvas.toBlob((blob) => resolve(blob || file), 'image/png');
       };
       img.onerror = () => resolve(file);
       img.src = objUrl;
@@ -520,15 +565,11 @@ const BgRemover = {
     const container = document.getElementById('bg-result-canvas-container');
     if (container) {
       if (this.activeBgMode === 'transparent') {
-        container.classList.add('bg-checkerboard');
-        container.style.backgroundColor = '';
+        container.style.backgroundImage = 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)';
+        container.style.backgroundSize = '16px 16px';
+        container.style.backgroundPosition = '0 0, 0 8px, 8px -8px, -8px 0px';
       } else {
-        container.classList.remove('bg-checkerboard');
-        container.style.backgroundColor = this.activeBgMode === 'white' 
-          ? '#ffffff' 
-          : this.activeBgMode === 'black' 
-            ? '#0b0c0e' 
-            : this.customBgColor;
+        container.style.backgroundImage = 'none';
       }
     }
   },
@@ -537,24 +578,27 @@ const BgRemover = {
     const canvas = document.getElementById('bg-result-canvas');
     if (!canvas) return;
 
-    const format = (this.activeBgMode === 'white' || this.activeBgMode === 'black' || this.activeBgMode === 'custom') 
-      ? 'image/jpeg' 
-      : 'image/png';
-    const ext = format === 'image/jpeg' ? 'jpg' : 'png';
+    const baseName = (this.currentFile?.name || 'cutout').replace(/\.[^/.]+$/, '');
+    const ext = this.activeBgMode === 'transparent' ? 'png' : 'png';
+    const mime = 'image/png';
 
-    const baseName = (this.currentFile?.name || 'image').replace(/\.[^.]+$/, '');
-    const outFilename = `${baseName}_no_bg.${ext}`;
-
-    const link = document.createElement('a');
-    link.download = outFilename;
-    link.href = canvas.toDataURL(format, 0.95);
-    link.click();
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseName}_cutout.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, mime);
   }
 };
 
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.BgRemover = BgRemover;
 }
-if (typeof module !== "undefined" && module.exports) {
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = BgRemover;
 }

@@ -32,22 +32,23 @@
     },
 
     resizeCanvas() {
+      if (!this.canvas) return;
       const container = this.canvas.parentElement;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const rect = container ? container.getBoundingClientRect() : null;
       const dpr = window.devicePixelRatio || 1;
-      const width = Math.min(800, Math.floor(rect.width));
+      const containerW = (rect && rect.width > 0) ? rect.width : (typeof window !== 'undefined' && window.innerWidth ? Math.min(800, window.innerWidth - 48) : 700);
+      const width = Math.max(280, Math.min(800, Math.floor(containerW)));
       const height = 260;
 
       this.canvas.width = width * dpr;
       this.canvas.height = height * dpr;
       this.canvas.style.width = `${width}px`;
       this.canvas.style.height = `${height}px`;
-
-      this.ctx.scale(dpr, dpr);
-      this.ctx.lineCap = 'round';
-      this.ctx.lineJoin = 'round';
-      this.redraw();
+      if (this.ctx) {
+        this.ctx.scale(dpr, dpr);
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+      }
     },
 
     bindEvents() {
@@ -209,9 +210,13 @@
     },
 
     saveState() {
+      if (!this.canvas || !this.ctx || this.canvas.width <= 0 || this.canvas.height <= 0) return;
       if (this.history.length > 20) this.history.shift();
-      const dpr = window.devicePixelRatio || 1;
-      this.history.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
+      try {
+        this.history.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
+      } catch (e) {
+        console.warn('Signature saveState skipped:', e);
+      }
     },
 
     undo() {
