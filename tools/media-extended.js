@@ -436,14 +436,16 @@ const MediaExtended = {
         dlBtn.appendChild(spanText);
 
         dlBtn.addEventListener('click', () => {
-          const a = document.createElement('a');
           const dUrl = URL.createObjectURL(blob);
-          a.href = dUrl;
-          a.download = safeBase + '.' + outExt;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(dUrl), 30000);
+          if (typeof dUrl === 'string' && dUrl.startsWith('blob:')) {
+            const a = document.createElement('a');
+            a.href = dUrl;
+            a.download = safeBase + '.' + outExt;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(dUrl), 30000);
+          }
         });
         
         resCard.appendChild(leftDiv);
