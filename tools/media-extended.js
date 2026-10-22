@@ -4,12 +4,7 @@
  */
 
 const MediaExtended = {
-  _safeBlobUrl(url) {
-    if (typeof url === 'string' && url.startsWith('blob:')) {
-      return url;
-    }
-    return '';
-  },
+
   init() {
     this.bindResizer();
     this.bindFaviconGenerator();
@@ -329,39 +324,12 @@ const MediaExtended = {
         }
       }
 
-      // 2. High-fidelity print view fallback
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        alert('Пожалуйста, разрешите всплывающие окна для экспорта PDF');
-        return;
+      // 2. Fallback notification if jsPDF is unavailable
+      if (window.App && typeof App.showToast === 'function') {
+        App.showToast(isRu ? 'Ошибка: библиотека jsPDF не загружена' : 'Error: jsPDF library not loaded');
+      } else {
+        alert(isRu ? 'Библиотека экспорта в PDF недоступна' : 'PDF export library is unavailable');
       }
-
-      printWindow.document.title = 'OmniKit PDF Export';
-      const style = printWindow.document.createElement('style');
-      style.textContent = `
-        @page { size: ${pageSize.toUpperCase()}; margin: 10mm; }
-        body { margin: 0; padding: 0; background: #fff; }
-        .page { page-break-after: always; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        img { max-width: 100%; max-height: 100%; object-fit: contain; }
-      `;
-      printWindow.document.head.appendChild(style);
-
-      const contentDiv = printWindow.document.createElement('div');
-      contentDiv.id = 'content';
-      printWindow.document.body.appendChild(contentDiv);
-      for (const file of loadedFiles) {
-        const pageDiv = printWindow.document.createElement('div');
-        pageDiv.className = 'page';
-        const img = printWindow.document.createElement('img');
-        const safeUrl = this._safeBlobUrl(URL.createObjectURL(file));
-        if (safeUrl) img.src = safeUrl;
-        pageDiv.appendChild(img);
-        contentDiv.appendChild(pageDiv);
-      }
-
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
     });
   },
 
@@ -412,8 +380,6 @@ const MediaExtended = {
       statusBox.appendChild(card);
 
       const showSuccessResult = (blob, outExt, outMime) => {
-        const url = this._safeBlobUrl(URL.createObjectURL(blob));
-        if (!url) return;
         statusBox.textContent = '';
         
         const resCard = document.createElement('div');
@@ -422,10 +388,17 @@ const MediaExtended = {
         const leftDiv = document.createElement('div');
         leftDiv.className = 'flex items-center gap-3.5 min-w-0';
         
-        const previewImg = document.createElement('img');
-        previewImg.src = url;
-        previewImg.alt = 'Preview';
-        previewImg.className = 'w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800';
+        const previewCanvas = document.createElement('canvas');
+        previewCanvas.width = 64;
+        previewCanvas.height = 64;
+        previewCanvas.className = 'w-16 h-16 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 bg-neutral-100 dark:bg-neutral-800';
+        
+        createImageBitmap(blob).then(bmp => {
+          const pCtx = previewCanvas.getContext('2d');
+          if (pCtx) {
+            pCtx.drawImage(bmp, 0, 0, 64, 64);
+          }
+        }).catch(() => {});
         
         const metaDiv = document.createElement('div');
         metaDiv.className = 'min-w-0 text-left';
@@ -436,35 +409,45 @@ const MediaExtended = {
         dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0';
         const titleText = document.createElement('h4');
         titleText.className = 'font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 truncate';
-        titleText.textContent = `${safeBase}.${outExt}`;
+        titleText.textContent = safeBase + '.' + outExt;
         titleRow.appendChild(dot);
         titleRow.appendChild(titleText);
         
         const infoP = document.createElement('p');
         infoP.className = 'text-xs text-neutral-500 dark:text-neutral-400 mt-1';
-        infoP.textContent = `${isRu ? 'Исходный' : 'Original'}: ${(file.size / 1024).toFixed(1)} KB • ${isRu ? 'Готово' : 'Output'}: ${(blob.size / 1024).toFixed(1)} KB`;
+        infoP.textContent = (isRu ? 'Исходный' : 'Original') + ': ' + (file.size / 1024).toFixed(1) + ' KB • ' + (isRu ? 'Готово' : 'Output') + ': ' + (blob.size / 1024).toFixed(1) + ' KB';
         
         metaDiv.appendChild(titleRow);
         metaDiv.appendChild(infoP);
-        leftDiv.appendChild(previewImg);
+        leftDiv.appendChild(previewCanvas);
         leftDiv.appendChild(metaDiv);
         
-        const dlLink = document.createElement('a');
-        dlLink.href = url;
-        dlLink.download = `${safeBase}.${outExt}`;
-        dlLink.className = 'btn-primary text-xs py-2.5 px-5 rounded-xl inline-flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center';
+        const dlBtn = document.createElement('button');
+        dlBtn.type = 'button';
+        dlBtn.className = 'btn-primary text-xs py-2.5 px-5 rounded-xl inline-flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center cursor-pointer';
         
         const icon = document.createElement('i');
         icon.setAttribute('data-lucide', 'download');
         icon.className = 'w-4 h-4';
         const spanText = document.createElement('span');
-        spanText.textContent = isRu ? `Скачать ${outExt.toUpperCase()}` : `Download ${outExt.toUpperCase()}`;
+        spanText.textContent = isRu ? ('Скачать ' + outExt.toUpperCase()) : ('Download ' + outExt.toUpperCase());
         
-        dlLink.appendChild(icon);
-        dlLink.appendChild(spanText);
+        dlBtn.appendChild(icon);
+        dlBtn.appendChild(spanText);
+
+        dlBtn.addEventListener('click', () => {
+          const a = document.createElement('a');
+          const dUrl = URL.createObjectURL(blob);
+          a.href = dUrl;
+          a.download = safeBase + '.' + outExt;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(dUrl), 30000);
+        });
         
         resCard.appendChild(leftDiv);
-        resCard.appendChild(dlLink);
+        resCard.appendChild(dlBtn);
         statusBox.appendChild(resCard);
         
         if (window.lucide) lucide.createIcons();
