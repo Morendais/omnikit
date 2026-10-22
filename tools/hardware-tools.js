@@ -1103,7 +1103,10 @@ const HardwareTools = {
     }, 500);
 
     const isDoubleClick = lastTime > 0 && delta <= this.mouse.clickThreshold && delta > 0;
-    const btnNames = ['LMB (Левая)', 'MMB (Колесико)', 'RMB (Правая)', 'Mouse 4 (Назад)', 'Mouse 5 (Вперед)'];
+    const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+    const btnNames = isRu
+      ? ['LMB (Левая)', 'MMB (Колесико)', 'RMB (Правая)', 'Mouse 4 (Назад)', 'Mouse 5 (Вперед)']
+      : ['LMB (Left)', 'MMB (Wheel)', 'RMB (Right)', 'Mouse 4 (Back)', 'Mouse 5 (Forward)'];
     const btnName = btnNames[btn] || `Button ${btn}`;
 
     if (isDoubleClick) {

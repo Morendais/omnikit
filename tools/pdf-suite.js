@@ -174,7 +174,7 @@ const PdfSuite = {
     });
   },
 
-  // --- 2. PDF to Images (JPG/PNG) via pdf.js ---
+  // --- 2. PDF to Images (JPG/PNG) via pdf.js with Fast Parallel Rendering & Cancel ---
   bindPdfToImages() {
     const input = document.getElementById('pdf2img-input');
     const dropzone = document.getElementById('pdf2img-dropzone');
@@ -182,15 +182,52 @@ const PdfSuite = {
     const actions = document.getElementById('pdf2img-actions');
     const formatSelect = document.getElementById('pdf2img-format');
     const downloadZipBtn = document.getElementById('pdf2img-download-all');
+    const resetBtn = document.getElementById('pdf2img-reset');
+    const progressBox = document.getElementById('pdf2img-progress');
+    const progressBar = document.getElementById('pdf2img-progress-bar');
+    const progressPercent = document.getElementById('pdf2img-progress-percent');
+    const progressText = document.getElementById('pdf2img-progress-text');
+    const cancelBtn = document.getElementById('pdf2img-cancel');
 
     if (!input || !dropzone) return;
 
+    this._pdfToImageCancelled = false;
+
+    const resetState = () => {
+      this._pdfToImageCancelled = true;
+      if (this.pdfImages) {
+        this.pdfImages.forEach(img => {
+          if (img.url) URL.revokeObjectURL(img.url);
+        });
+      }
+      this.pdfImages = [];
+      if (actions) actions.classList.add('hidden');
+      if (progressBox) progressBox.classList.add('hidden');
+      if (previewContainer) previewContainer.innerHTML = '';
+      dropzone.classList.remove('hidden');
+      input.value = '';
+    };
+
+    resetBtn?.addEventListener('click', resetState);
+
+    cancelBtn?.addEventListener('click', () => {
+      this._pdfToImageCancelled = true;
+      const isRu = (typeof window !== 'undefined' && window.I18N?.currentLang || 'ru') === 'ru';
+      if (progressText) progressText.textContent = isRu ? 'Обработка отменена' : 'Processing cancelled';
+      if (progressBox) {
+        setTimeout(() => progressBox.classList.add('hidden'), 600);
+      }
+    });
+
     const loadPdfFile = async (file) => {
       if (!file) return;
-      if (!window.pdfjsLib) {
+      if (typeof window === 'undefined' || !window.pdfjsLib) {
         alert('Библиотека PDF.js загружается, пожалуйста, повторите через 2 секунды.');
         return;
       }
+
+      this._pdfToImageCancelled = false;
+      const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
 
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -200,53 +237,100 @@ const PdfSuite = {
           const numPages = this.pdfDoc.numPages;
           this.pdfImages = [];
 
+          dropzone.classList.add('hidden');
+          actions?.classList.remove('hidden');
+          if (progressBox) {
+            progressBox.classList.remove('hidden');
+            if (progressBar) progressBar.style.width = '0%';
+            if (progressPercent) progressPercent.textContent = '0%';
+            if (progressText) progressText.textContent = isRu ? `Извлечение страниц (0 / ${numPages})...` : `Extracting pages (0 / ${numPages})...`;
+          }
+
           if (previewContainer) {
             previewContainer.innerHTML = `
               <div class="text-xs text-neutral-500 mb-2 font-medium">
-                ${(window.I18N?.currentLang || 'ru') === 'ru' ? `Страниц в документе: ${numPages}` : `Total pages: ${numPages}`}
+                ${isRu ? `Страниц в документе: ${numPages}` : `Total pages: ${numPages}`}
               </div>
               <div id="pdf-pages-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
             `;
           }
 
           const grid = document.getElementById('pdf-pages-grid');
-          actions?.classList.remove('hidden');
+          const format = formatSelect?.value || 'jpeg';
+          const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+          const ext = format === 'png' ? 'png' : 'jpg';
 
-          for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          let completedCount = 0;
+
+          // Render a single page efficiently to Blob
+          const renderPage = async (pageNum) => {
+            if (this._pdfToImageCancelled) return;
             const page = await this.pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
+            const viewport = page.getViewport({ scale: 1.35 });
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
+            const ctx = canvas.getContext('2d', { alpha: false });
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             await page.render({ canvasContext: ctx, viewport }).promise;
+            if (this._pdfToImageCancelled) return;
 
-            const format = formatSelect?.value || 'jpeg';
-            const mime = format === 'png' ? 'image/png' : 'image/jpeg';
-            const dataUrl = canvas.toDataURL(mime, 0.92);
+            const blob = await new Promise(res => canvas.toBlob(res, mime, 0.90));
+            const url = URL.createObjectURL(blob);
 
-            this.pdfImages.push({ pageNum, dataUrl, mime, ext: format === 'png' ? 'png' : 'jpg' });
+            const item = { pageNum, blob, url, mime, ext };
+            this.pdfImages.push(item);
+            completedCount++;
 
-            if (grid) {
+            // Update UI progress
+            const pct = Math.round((completedCount / numPages) * 100);
+            if (progressBar) progressBar.style.width = `${pct}%`;
+            if (progressPercent) progressPercent.textContent = `${pct}%`;
+            if (progressText) progressText.textContent = isRu ? `Извлечение страниц (${completedCount} / ${numPages})...` : `Extracting pages (${completedCount} / ${numPages})...`;
+
+            if (grid && !this._pdfToImageCancelled) {
               const card = document.createElement('div');
-              card.className = 'p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#14161a] text-center space-y-2 shadow-sm';
+              card.className = 'p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#14161a] text-center space-y-2 shadow-sm animate-fade-in';
               card.innerHTML = `
                 <div class="aspect-[3/4] bg-neutral-100 dark:bg-neutral-900 rounded overflow-hidden flex items-center justify-center">
-                  <img src="${dataUrl}" class="max-h-full max-w-full object-contain" alt="Page ${pageNum}">
+                  <img src="${url}" class="max-h-full max-w-full object-contain" alt="Page ${pageNum}">
                 </div>
                 <div class="flex items-center justify-between text-xs px-1">
                   <span class="font-mono text-neutral-500">${pageNum}</span>
-                  <a href="${dataUrl}" download="page-${pageNum}.${format === 'png' ? 'png' : 'jpg'}" class="btn-secondary py-1 px-2 text-[10px]">
-                    ${(window.I18N?.currentLang || 'ru') === 'ru' ? 'Скачать' : 'Save'}
+                  <a href="${url}" download="page-${pageNum}.${ext}" class="btn-secondary py-1 px-2 text-[10px]">
+                    ${isRu ? 'Скачать' : 'Save'}
                   </a>
                 </div>
               `;
               grid.appendChild(card);
             }
+          };
+
+          // Render concurrently in batches of 3
+          const concurrency = 3;
+          for (let i = 1; i <= numPages; i += concurrency) {
+            if (this._pdfToImageCancelled) break;
+            const batch = [];
+            for (let j = 0; j < concurrency && (i + j) <= numPages; j++) {
+              batch.push(renderPage(i + j));
+            }
+            await Promise.all(batch);
+          }
+
+          // Sort images array by pageNum
+          this.pdfImages.sort((a, b) => a.pageNum - b.pageNum);
+
+          if (progressBox) {
+            if (!this._pdfToImageCancelled) {
+              if (progressText) progressText.textContent = isRu ? `Все страницы (${numPages}) успешно извлечены!` : `All pages (${numPages}) extracted!`;
+              setTimeout(() => progressBox.classList.add('hidden'), 1200);
+            }
           }
         } catch (err) {
           alert('Ошибка чтения PDF файла: ' + err.message);
+          resetState();
         }
       };
       reader.readAsArrayBuffer(file);
@@ -267,10 +351,9 @@ const PdfSuite = {
     downloadZipBtn?.addEventListener('click', async () => {
       if (!this.pdfImages || this.pdfImages.length === 0) return;
       if (!window.JSZip) {
-        // Fallback: download sequential
         this.pdfImages.forEach(img => {
           const a = document.createElement('a');
-          a.href = img.dataUrl;
+          a.href = img.url;
           a.download = `page-${img.pageNum}.${img.ext}`;
           a.click();
         });
@@ -283,8 +366,7 @@ const PdfSuite = {
       try {
         const zip = new JSZip();
         for (const img of this.pdfImages) {
-          const base64Data = img.dataUrl.split(',')[1];
-          zip.file(`page-${img.pageNum}.${img.ext}`, base64Data, { base64: true });
+          zip.file(`page-${img.pageNum}.${img.ext}`, img.blob);
         }
         const blob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(blob);
