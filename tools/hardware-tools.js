@@ -65,6 +65,7 @@ const HardwareTools = {
     normalClicksCount: 0,
     clickHistory: [],
     cpsActive: false,
+    cpsCooldown: false,
     cpsClicks: 0,
     cpsTimer: null,
     cpsTimeLeft: 5,
@@ -1221,6 +1222,10 @@ const HardwareTools = {
   },
 
   handleCpsClick() {
+    if (this.mouse.cpsCooldown) {
+      return; // Ignore spam clicks right after test finishes so result is not instantly dismissed
+    }
+
     const cpsBtn = document.getElementById('mouse-cps-btn');
     const timerEl = document.getElementById('mouse-cps-timer');
     const valEl = document.getElementById('mouse-cps-val');
@@ -1236,15 +1241,15 @@ const HardwareTools = {
       if (countEl) countEl.textContent = '1';
       if (valEl) valEl.textContent = '0.2';
 
-      // Live animated state in the purple button
+      // Live animated state in the purple button (fixed dimensions)
       if (cpsBtn) {
         cpsBtn.innerHTML = `
-          <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center">
+          <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full">
             <div class="text-xl sm:text-2xl font-black text-indigo-900 dark:text-indigo-100 tracking-tight flex items-center gap-2">
               <span class="animate-ping w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
               <span>${this.t('cps_clicking', 'КЛИКАЙТЕ!', 'CLICK FAST!')}</span>
             </div>
-            <div class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+            <div class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1.5">
               <span id="mouse-cps-live-clicks">1</span> ${this.t('cps_clicks_word', 'кликов', 'clicks')} • <span id="mouse-cps-live-time">5.0s</span>
             </div>
           </div>
@@ -1267,31 +1272,37 @@ const HardwareTools = {
         if (remaining <= 0) {
           clearInterval(this.mouse.cpsTimer);
           this.mouse.cpsActive = false;
+          this.mouse.cpsCooldown = true;
+
+          // Cooldown prevents frantic spam-clicking from closing the result window
+          setTimeout(() => {
+            this.mouse.cpsCooldown = false;
+          }, 900);
 
           const finalCps = this.mouse.cpsClicks / 5;
           if (valEl) valEl.textContent = finalCps.toFixed(1);
           if (timerEl) timerEl.textContent = this.t('cps_finished', 'Тест завершен!', 'Finished!');
 
-          let rankTitle, rankEmoji, rankBadgeColor;
+          let rankTitle, rankIcon, rankBadgeColor;
           if (finalCps >= 14) {
             rankTitle = this.t('cps_rank_godlike', 'Человек-молния', 'Godlike Clicker');
-            rankEmoji = '⚡';
+            rankIcon = '<i data-lucide="zap" class="w-4 h-4 text-amber-500 shrink-0"></i>';
             rankBadgeColor = 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800';
           } else if (finalCps >= 11) {
             rankTitle = this.t('cps_rank_pro', 'Киберспортсмен', 'Esports Pro');
-            rankEmoji = '🔥';
+            rankIcon = '<i data-lucide="flame" class="w-4 h-4 text-rose-500 shrink-0"></i>';
             rankBadgeColor = 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800';
           } else if (finalCps >= 8) {
             rankTitle = this.t('cps_rank_fast', 'Быстрый кликер', 'Fast Clicker');
-            rankEmoji = '🚀';
+            rankIcon = '<i data-lucide="rocket" class="w-4 h-4 text-indigo-500 shrink-0"></i>';
             rankBadgeColor = 'bg-indigo-100 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
           } else if (finalCps >= 5) {
             rankTitle = this.t('cps_rank_normal', 'Обычная скорость', 'Normal Speed');
-            rankEmoji = '🖱️';
+            rankIcon = '<i data-lucide="mouse" class="w-4 h-4 text-emerald-500 shrink-0"></i>';
             rankBadgeColor = 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
           } else {
             rankTitle = this.t('cps_rank_slow', 'Неторопливый клик', 'Casual Clicker');
-            rankEmoji = '🐢';
+            rankIcon = '<i data-lucide="gauge" class="w-4 h-4 text-neutral-400 shrink-0"></i>';
             rankBadgeColor = 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700';
           }
 
@@ -1304,23 +1315,23 @@ const HardwareTools = {
             if (bestEl) bestEl.textContent = finalCps.toFixed(1);
           }
 
-          // RENDER FULL RICH RESULT ON THE ENTIRE PURPLE BUTTON
+          // RENDER FULL RICH RESULT (NO EMOJIS, LUCIDE ICONS ONLY)
           if (cpsBtn) {
             cpsBtn.innerHTML = `
-              <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center py-2 w-full animate-fade-in">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs uppercase font-extrabold tracking-wider text-indigo-600 dark:text-indigo-400">
+              <div class="flex flex-col items-center justify-center pointer-events-none select-none text-center w-full h-full animate-fade-in py-1">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <span class="text-[11px] sm:text-xs uppercase font-extrabold tracking-wider text-indigo-600 dark:text-indigo-400">
                     ${this.t('cps_result_title', 'Результат теста', 'Test Result')}
                   </span>
                   ${isNewBest ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-amber-950 shadow-sm animate-bounce">${this.t('cps_new_record', 'Новый рекорд!', 'New Record!')}</span>` : ''}
                 </div>
                 
-                <div class="text-4xl sm:text-5xl font-black text-indigo-950 dark:text-white tracking-tight my-1">
-                  ${finalCps.toFixed(1)} <span class="text-xl sm:text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">CPS</span>
+                <div class="text-3xl sm:text-4xl font-black text-indigo-950 dark:text-white tracking-tight my-0.5">
+                  ${finalCps.toFixed(1)} <span class="text-lg sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400">CPS</span>
                 </div>
 
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${rankBadgeColor} my-1.5 shadow-sm">
-                  <span>${rankEmoji}</span>
+                <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold border ${rankBadgeColor} my-1 shadow-sm">
+                  ${rankIcon}
                   <span>${rankTitle}</span>
                   <span class="opacity-40">•</span>
                   <span>${this.mouse.cpsClicks} ${this.t('cps_clicks_in_5s', 'кликов за 5 сек', 'clicks in 5s')}</span>

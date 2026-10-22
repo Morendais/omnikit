@@ -45,14 +45,10 @@ const TokenTool = {
   tokens: 0,
 
   init() {
-    try {
-      localStorage.removeItem('omnikit_ai_models');
-      localStorage.removeItem('omnikit_ai_models_v2');
-    } catch (e) {}
     this.models = [...this.baseModels];
     this.bindEvents();
-    this.updateSyncBadge();
-    this.renderPricing();
+    this.loadCachedModels();
+    this.fetchLiveModels();
   },
 
   bindEvents() {
@@ -164,21 +160,124 @@ const TokenTool = {
     } catch (e) {}
   },
 
+  loadCachedModels() {
+    try {
+      const cached = localStorage.getItem('omnikit_ai_models_v2');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed.models) && parsed.models.length > 0) {
+          this.models = parsed.models;
+          this.updateSyncBadge(parsed.timestamp, false);
+          this.renderPricing();
+        }
+      }
+    } catch (e) {}
+  },
+
   async fetchLiveModels(force = false) {
-    this.models = [...this.baseModels];
-    this.updateSyncBadge();
-    this.renderPricing();
-    const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
-    if (window.App && typeof App.showToast === 'function') {
-      App.showToast(isRu ? 'База моделей ИИ актуализирована (100% офлайн)' : 'AI models database updated (100% offline)');
+    const syncBtn = document.getElementById('token-sync-btn');
+    if (syncBtn) syncBtn.classList.add('animate-spin');
+
+    try {
+      // Check cache timestamp (valid for 24 hours unless force)
+      if (!force) {
+        const cached = localStorage.getItem('omnikit_ai_models_v2');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const ageHours = (Date.now() - (parsed.timestamp || 0)) / (1000 * 60 * 60);
+          if (ageHours < 24 && parsed.models && parsed.models.length > 20) {
+            this.models = parsed.models;
+            this.updateSyncBadge(parsed.timestamp, false);
+            this.renderPricing();
+            if (syncBtn) syncBtn.classList.remove('animate-spin');
+            return;
+          }
+        }
+      }
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch('https://openrouter.ai/api/v1/models', { method: 'GET', signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+
+      if (!res.ok) throw new Error('Network response error');
+      const data = await res.json();
+      if (!data || !Array.isArray(data.data)) throw new Error('Invalid format');
+
+      // Sort all models by created descending (newest 2026 releases first!)
+      const rawSorted = [...data.data].sort((a, b) => (b.created || 0) - (a.created || 0));
+
+      const extracted = rawSorted.map(m => {
+        const promptPrice = Number(m.pricing?.prompt || 0);
+        const compPrice = Number(m.pricing?.completion || 0);
+        const inPerM = promptPrice * 1000000;
+        const outPerM = compPrice * 1000000;
+
+        let provider = 'other';
+        const idLower = m.id.toLowerCase();
+        if (idLower.includes('openai') || idLower.includes('gpt')) provider = 'openai';
+        else if (idLower.includes('anthropic') || idLower.includes('claude')) provider = 'anthropic';
+        else if (idLower.includes('google') || idLower.includes('gemini')) provider = 'google';
+        else if (idLower.includes('deepseek')) provider = 'deepseek';
+        else if (idLower.includes('meta') || idLower.includes('llama')) provider = 'meta';
+
+        const dt = m.created ? new Date(m.created * 1000).toISOString().slice(0, 7) : '2026';
+
+        return {
+          id: m.id,
+          name: m.name || m.id,
+          provider: provider,
+          inputPerM: inPerM,
+          outputPerM: outPerM,
+          context: m.context_length || 128000,
+          created: m.created || 0,
+          date: dt
+        };
+      });
+
+      // Filter out empty/unpriced models
+      const valid = extracted.filter(m => m.name && (m.inputPerM >= 0) && !m.id.includes(':batch'));
+
+      // Merge: keep 2026 flagship base models priority, followed by live models
+      const baseIds = new Set(this.baseModels.map(b => b.id.toLowerCase()));
+      const filteredLive = valid.filter(m => !baseIds.has(m.id.toLowerCase()));
+      this.models = [...this.baseModels, ...filteredLive];
+
+      // Save to localStorage v2
+      localStorage.setItem('omnikit_ai_models_v2', JSON.stringify({
+        timestamp: Date.now(),
+        models: this.models
+      }));
+
+      this.updateSyncBadge(Date.now(), true);
+      this.renderPricing();
+
+      if (force) {
+        const isRu = (window.I18N?.currentLang || 'ru') === 'ru';
+        if (window.App && typeof App.showToast === 'function') {
+          App.showToast(isRu ? `База моделей ИИ синхронизирована с OpenRouter (${this.models.length} моделей)` : `AI models synced from OpenRouter (${this.models.length} models)`);
+        }
+      }
+    } catch (e) {
+      // Graceful fallback to baseModels if offline or network blocked
+      this.updateSyncBadge(Date.now(), false, true);
+    } finally {
+      if (syncBtn) syncBtn.classList.remove('animate-spin');
     }
   },
 
-  updateSyncBadge() {
+  updateSyncBadge(timestamp, isFresh = false, isError = false) {
     const badge = document.getElementById('token-sync-badge');
     if (!badge) return;
+
     const count = this.models.length;
-    badge.textContent = `● Offline DB (${count} models, 2026)`;
+    if (isError) {
+      badge.textContent = `● Base DB (${count} models, 2026)`;
+      badge.className = 'text-[11px] font-mono text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20';
+      return;
+    }
+
+    badge.textContent = `● Live Synced (${count} models, 2026)`;
     badge.className = 'text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20';
   },
 
